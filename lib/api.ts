@@ -1,28 +1,25 @@
-// lib/api.js
+// lib/api.ts
 import { supabase } from './supabaseClient';
 import { marked } from 'marked';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import type { BlogPost } from '../src/types/blog';
 
 // Configure marked with a custom renderer for code blocks
-const renderer = new marked.Renderer();
-renderer.code = (code, language) => {
-  return `<pre style="background-color:#2d2d2d;padding:1em;">${SyntaxHighlighter.render({
-    language,
-    value: code,
-    style: dracula,
-    PreTag: 'div'
-  })}</pre>`;
+const renderer = {
+  code(code: string, language: string) {
+    return SyntaxHighlighter({
+      language,
+      children: code,
+      style: dracula,
+      PreTag: 'div'
+    });
+  }
 };
 
-marked.setOptions({
-  renderer,
-  pedantic: false,
-  gfm: true,
-  breaks: true,
-});
+marked.use({ renderer });
 
-export async function fetchPosts() {
+export async function fetchPosts(): Promise<BlogPost[]> {
   if (!supabase) {
     console.error("Supabase client not initialized.");
     return [];
@@ -37,14 +34,14 @@ export async function fetchPosts() {
       console.error("Error fetching posts:", error);
       throw new Error("Failed to fetch blog posts.");
     }
-    return data;
+    return data || [];
   } catch (err) {
     console.error("An unexpected error occurred:", err);
     return [];
   }
 }
 
-export async function fetchPostBySlug(slug) {
+export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
   if (!supabase) {
     console.error("Supabase client not initialized.");
     return null;

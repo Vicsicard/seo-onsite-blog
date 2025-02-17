@@ -1,7 +1,8 @@
 // lib/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-let supabase = null;
+let supabase: SupabaseClient | null = null;
 
 try {
   const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL;

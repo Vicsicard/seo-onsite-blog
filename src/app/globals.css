@@ -14,11 +14,6 @@
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color: theme('colors.white');
   }
-
-  /* Preserve the gradient background when using dark mode */
-  .dark body {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  }
 }
 
 @layer components {
@@ -39,7 +34,7 @@
   }
 
   .blog-content {
-    @apply prose prose-lg prose-invert max-w-none;
+    @apply prose prose-invert max-w-none;
   }
 
   .tag {
@@ -47,49 +42,19 @@
   }
 }
 
-/* Custom styles for code blocks and syntax highlighting */
-.prose pre {
-  @apply bg-gray-900/80 backdrop-blur-sm border border-gray-700 !important;
-}
-
-.prose code {
-  @apply text-accent !important;
-}
-
-/* Custom link styles */
-.prose a {
-  @apply text-accent hover:text-accent/80 transition-colors !important;
-}
-
-/* Custom styles for blockquotes */
-.prose blockquote {
-  @apply border-l-4 border-accent bg-white/5 px-4 py-2 !important;
-}
-
-/* Custom styles for headings */
-.prose h1, .prose h2, .prose h3, .prose h4 {
-  @apply text-white !important;
+@layer utilities {
+  .prose-custom {
+    @apply prose-headings:text-white 
+           prose-a:text-accent 
+           prose-a:no-underline 
+           prose-a:transition-colors
+           hover:prose-a:opacity-80
+           prose-blockquote:border-l-accent 
+           prose-blockquote:bg-white/5;
+  }
 }
 
 /* Smooth scrolling for the whole page */
 html {
   scroll-behavior: smooth;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--gradient-start);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--accent-color);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: theme('colors.orange.400');
 }

@@ -15,37 +15,28 @@ const config: Config = {
           end: "var(--gradient-end)",
         },
       },
-      typography: {
+      typography: ({ theme }: { theme: any }) => ({
         DEFAULT: {
           css: {
-            maxWidth: 'none',
-            color: 'white',
-            a: {
-              color: 'var(--accent-color)',
-              '&:hover': {
-                color: 'var(--accent-color)',
-                opacity: 0.8,
-              },
-            },
-            blockquote: {
-              borderLeftColor: 'var(--accent-color)',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            },
-            'code::before': {
-              content: '""',
-            },
-            'code::after': {
-              content: '""',
-            },
+            '--tw-prose-body': theme('colors.white'),
+            '--tw-prose-headings': theme('colors.white'),
+            '--tw-prose-links': 'var(--accent-color)',
+            '--tw-prose-bold': theme('colors.white'),
+            '--tw-prose-counters': theme('colors.white'),
+            '--tw-prose-bullets': theme('colors.white'),
+            '--tw-prose-quotes': theme('colors.white'),
+            '--tw-prose-code': 'var(--accent-color)',
+            '--tw-prose-pre-code': theme('colors.white'),
+            '--tw-prose-pre-bg': 'rgb(0 0 0 / 0.3)',
+            '--tw-prose-quote-borders': 'var(--accent-color)',
           },
         },
-      },
+      }),
     },
   },
   plugins: [
     require('@tailwindcss/typography'),
   ],
-  darkMode: 'class',
 };
 
 export default config;
