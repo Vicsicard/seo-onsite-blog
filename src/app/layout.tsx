@@ -1,17 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+  variable: "--font-inter",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
+  variable: "--font-mono",
 });
 
 export const viewport: Viewport = {
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     },
     description: "Explore high-end remodeling trends in Denver and get inspired with expert blog posts.",
     images: [{
-      url: '/og-image.jpg', 
+      url: '/og-image.jpg',
       width: 1200,
       height: 630,
       alt: 'OnsiteProposal Blog',
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     },
     description: "Explore high-end remodeling trends in Denver and get inspired with expert blog posts.",
     creator: '@OnsiteProposal',
-    images: ['/og-image.jpg'], 
+    images: ['/og-image.jpg'],
   },
   robots: {
     index: true,
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 'your-google-verification-code', 
+    google: 'your-google-verification-code',
   },
   alternates: {
     canonical: 'https://onsiteproposal.com',
@@ -94,7 +94,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-50 min-h-screen`}
       >
         {children}
       </body>

@@ -15,6 +15,10 @@ const config: Config = {
           end: "var(--gradient-end)",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-inter)"],
+        mono: ["var(--font-mono)"],
+      },
       typography: ({ theme }: { theme: any }) => ({
         DEFAULT: {
           css: {

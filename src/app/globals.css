@@ -6,11 +6,13 @@
   --gradient-start: #1f1c2c;
   --gradient-end: #928dab;
   --accent-color: #ffa500;
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono);
 }
 
 @layer base {
   body {
-    @apply min-h-screen;
+    @apply min-h-screen font-sans;
     background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
     color: theme('colors.white');
   }
