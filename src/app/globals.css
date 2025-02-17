@@ -3,19 +3,93 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --gradient-start: #1f1c2c;
+  --gradient-end: #928dab;
+  --accent-color: #ffa500;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply min-h-screen;
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    color: theme('colors.white');
+  }
+
+  /* Preserve the gradient background when using dark mode */
+  .dark body {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .container-wrapper {
+    @apply max-w-4xl mx-auto px-4 py-8;
+  }
+
+  .blog-post {
+    @apply bg-white/10 backdrop-blur-sm rounded-lg shadow-xl p-6 mb-8;
+  }
+
+  .blog-title {
+    @apply text-2xl font-bold mb-4 text-white hover:text-accent transition-colors;
+  }
+
+  .blog-meta {
+    @apply text-sm text-gray-300 mb-4;
+  }
+
+  .blog-content {
+    @apply prose prose-lg prose-invert max-w-none;
+  }
+
+  .tag {
+    @apply inline-block px-3 py-1 rounded-full text-sm bg-white/20 text-white mr-2 mb-2 hover:bg-white/30 transition-colors;
+  }
+}
+
+/* Custom styles for code blocks and syntax highlighting */
+.prose pre {
+  @apply bg-gray-900/80 backdrop-blur-sm border border-gray-700 !important;
+}
+
+.prose code {
+  @apply text-accent !important;
+}
+
+/* Custom link styles */
+.prose a {
+  @apply text-accent hover:text-accent/80 transition-colors !important;
+}
+
+/* Custom styles for blockquotes */
+.prose blockquote {
+  @apply border-l-4 border-accent bg-white/5 px-4 py-2 !important;
+}
+
+/* Custom styles for headings */
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  @apply text-white !important;
+}
+
+/* Smooth scrolling for the whole page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gradient-start);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.orange.400');
 }
