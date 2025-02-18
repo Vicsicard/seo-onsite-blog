@@ -1,21 +1,19 @@
 export interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  seo_title?: string;
-  seo_description?: string;
-  featured_image_url?: string;
-  published_date: string;
-  updated_date?: string;
-  author?: string;
-  category?: 'kitchen' | 'bathroom' | 'home' | 'general';
-  tags?: string[];
-  status: 'draft' | 'published';
-  meta_data?: {
-    reading_time?: number;
-    views?: number;
-    likes?: number;
-  };
+  id: string;           // uuid
+  content: string;      // text
+  title: string;        // text
+  slug: string | null;  // text, nullable
+  created_at: string | null;  // text, nullable
+  tags: string | null;  // text, nullable
+}
+
+// Helper function to parse tags string into array
+export function parseTags(tags: string | null): string[] {
+  if (!tags) return [];
+  try {
+    return JSON.parse(tags);
+  } catch {
+    // If tags is a comma-separated string
+    return tags.split(',').map(tag => tag.trim());
+  }
 }

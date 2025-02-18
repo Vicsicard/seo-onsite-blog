@@ -23,13 +23,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: post.seo_title || post.title,
-    description: post.seo_description || post.excerpt || `Read about ${post.title} on our blog.`,
-    openGraph: {
-      title: post.seo_title || post.title,
-      description: post.seo_description || post.excerpt,
-      images: post.featured_image_url ? [{ url: post.featured_image_url }] : [],
-    },
+    title: post.title,
+    description: post.content.substring(0, 155) + '...',
   };
 }
 
@@ -60,7 +55,15 @@ export default async function BlogPostPage({ params }: PageProps) {
     notFound();
   }
 
+  // Check if this is a Jerome post
   const isJeromePost = post.tags?.includes('jerome');
+
+  // Extract the first image URL from the content if it exists
+  const firstImageMatch = post.content.match(/!\[.*?\]\((.*?)\)/);
+  const featuredImageUrl = firstImageMatch ? firstImageMatch[1] : null;
+
+  // Remove the image from the content if it was found
+  const contentWithoutImage = post.content.replace(/!\[.*?\]\((.*?)\)/, '').trim();
 
   return (
     <div>
@@ -68,10 +71,10 @@ export default async function BlogPostPage({ params }: PageProps) {
       
       <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Featured Image */}
-        {post.featured_image_url && (
+        {featuredImageUrl && (
           <div className="relative h-[400px] w-full mb-8 rounded-lg overflow-hidden">
             <Image
-              src={post.featured_image_url}
+              src={featuredImageUrl}
               alt={post.title}
               fill
               className="object-cover"
@@ -90,12 +93,12 @@ export default async function BlogPostPage({ params }: PageProps) {
           </h1>
           
           <div className="flex items-center text-gray-400 text-sm">
-            <time dateTime={post.published_date}>
-              {new Date(post.published_date).toLocaleDateString('en-US', {
+            <time dateTime={post.created_at || ''}>
+              {post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
-              })}
+              }) : 'Date not available'}
             </time>
           </div>
         </header>
@@ -103,7 +106,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         {/* Article Content */}
         <div 
           className="prose prose-invert prose-lg max-w-none"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: contentWithoutImage }}
         />
 
         {/* Jerome's Conversation Section */}
@@ -129,15 +132,15 @@ export default async function BlogPostPage({ params }: PageProps) {
         )}
 
         {/* Tags */}
-        {post.tags && post.tags.length > 0 && (
+        {post.tags && (
           <div className="mt-8 pt-8 border-t border-gray-800">
             <div className="flex flex-wrap gap-2">
-              {post.tags.map((tag) => (
+              {post.tags.split(',').map((tag) => (
                 <span
                   key={tag}
                   className="inline-block px-3 py-1 text-sm text-gray-300 bg-gray-800 rounded-full"
                 >
-                  {tag}
+                  {tag.trim()}
                 </span>
               ))}
             </div>

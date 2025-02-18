@@ -2,9 +2,10 @@
 import { supabase } from './supabaseClient';
 import { marked } from 'marked';
 import type { BlogPost } from '../src/types/blog';
+import { parseTags } from '../src/types/blog';
 
 const POSTS_PER_PAGE = 9;
-const ALLOWED_TAGS = ['homeremodeling', 'kitchenremodeling', 'bathroomremodeling'] as const;
+const ALLOWED_TAGS = ['homeremodeling', 'kitchenremodeling', 'bathroomremodeling', 'jerome'] as const;
 type AllowedTag = typeof ALLOWED_TAGS[number];
 
 interface FetchPostsOptions {
@@ -70,14 +71,12 @@ export async function fetchPostsByTag(options: FetchPostsOptions): Promise<Pagin
     const { data, error, count } = await supabase
       .from('blog_posts')
       .select('*', { count: 'exact' })
-      .eq('status', 'published')
-      .contains('tags', [tag]) // Exact tag match
-      .order('published_date', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(start, end);
 
     if (error) {
       console.error("Error fetching posts:", error);
-      throw error;
+      return defaultResponse;
     }
 
     if (!data) {
@@ -85,17 +84,16 @@ export async function fetchPostsByTag(options: FetchPostsOptions): Promise<Pagin
       return defaultResponse;
     }
 
-    // Additional validation to ensure posts have exactly the tag we want
-    const filteredPosts = data.filter(post => 
-      Array.isArray(post.tags) && 
-      post.tags.some(t => t === tag)
-    );
+    // Filter posts by tag
+    const filteredPosts = data.filter(post => {
+      const postTags = parseTags(post.tags);
+      return postTags.includes(tag);
+    });
 
     // Process markdown content for each post
     const processedPosts = filteredPosts.map(post => ({
       ...post,
-      content: post.content ? convertMarkdownToHtml(post.content) : '',
-      excerpt: post.excerpt || post.content?.slice(0, 150) || ''
+      content: convertMarkdownToHtml(post.content)
     }));
 
     const total = filteredPosts.length;
@@ -124,7 +122,6 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
       .from('blog_posts')
       .select('*')
       .eq('slug', slug)
-      .eq('status', 'published')
       .single();
 
     if (error) {
@@ -137,22 +134,10 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
       return null;
     }
 
-    // Verify the post has at least one of our allowed tags
-    const hasAllowedTag = Array.isArray(data.tags) && 
-      data.tags.some(tag => ALLOWED_TAGS.includes(tag as AllowedTag));
-
-    if (!hasAllowedTag) {
-      console.error("Post does not have any allowed tags");
-      return null;
-    }
-
-    // Convert markdown content to HTML and ensure all fields exist
+    // Convert markdown content to HTML
     return {
       ...data,
-      content: data.content ? convertMarkdownToHtml(data.content) : '',
-      excerpt: data.excerpt || data.content?.slice(0, 150) || '',
-      seo_description: data.seo_description || data.excerpt || data.content?.slice(0, 150) || '',
-      seo_title: data.seo_title || data.title
+      content: convertMarkdownToHtml(data.content)
     };
   } catch (err) {
     console.error("An unexpected error occurred:", err);
