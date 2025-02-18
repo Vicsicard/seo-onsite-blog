@@ -3,6 +3,7 @@ import Header from '@/components/Header';
 import { fetchPosts } from '../../../../lib/api';
 import type { BlogPost } from '../../../types/blog';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'Luxury Kitchen Remodeling | Denver Home Renovation',
@@ -52,18 +53,45 @@ export const revalidate = 10;
 
 export default async function KitchenRemodelingPage() {
   const allPosts = await fetchPosts();
-  // Filter posts for kitchen remodeling (you'll need to add categories to your posts)
   const kitchenPosts = allPosts.filter(post => post.title.toLowerCase().includes('kitchen'));
+  const imageUrl = 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-kitchen-image-333333333.jpg';
 
   return (
     <div>
       <Header />
       
+      <div className="relative">
+        {/* Category Header Image */}
+        <div className="relative h-[400px] w-full">
+          <Image
+            src={imageUrl}
+            alt="Luxury Kitchen Remodeling in Denver"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+            quality={90}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 to-black/50" />
+          
+          {/* Category Header Content */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center max-w-4xl mx-auto px-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                Luxury Kitchen Remodeling
+              </h1>
+              <p className="text-xl text-gray-200 max-w-2xl mx-auto">
+                Transform your kitchen into a stunning culinary masterpiece with our expert design tips and insights.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Luxury Kitchen Remodeling</h1>
+          <h2 className="text-3xl font-bold text-white mb-4">Latest Kitchen Articles</h2>
           <p className="text-gray-300 max-w-2xl mx-auto">
-            Transform your kitchen into a stunning culinary masterpiece with our expert design tips and insights.
             Discover the latest trends, materials, and innovations in luxury kitchen remodeling.
           </p>
         </div>
