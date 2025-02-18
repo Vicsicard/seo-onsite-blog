@@ -1,49 +1,56 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabaseClient';
-import { marked } from 'marked';
+import { fetchAllPosts } from '../../../../lib/api';
 
 export async function GET() {
+  console.log('Handling GET request to /api/test-posts');
+  
   try {
-    // Fetch the specific post
-    const { data, error } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .eq('slug', 'how-to-optimize-your-resume-for-ats')
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (!data) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
-    }
-
-    // Convert markdown content to HTML
-    const htmlContent = marked(data.content);
-
-    // Parse tags
-    const tags = data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [];
-
-    const formattedPost = {
-      id: data.id,
-      title: data.title,
-      slug: data.slug,
-      content: htmlContent,
-      created_at: data.created_at,
-      tags: tags
+    console.log('Fetching all posts...');
+    const posts = await fetchAllPosts();
+    
+    const counts = {
+      home: posts.homePosts.length,
+      kitchen: posts.kitchenPosts.length,
+      bathroom: posts.bathroomPosts.length,
+      jerome: posts.jeromePosts.length
     };
 
+    console.log('Posts fetched successfully:', counts);
+    
     return NextResponse.json({
       success: true,
-      post: formattedPost
+      posts,
+      counts,
+      timestamp: new Date().toISOString()
     });
   } catch (err) {
-    console.error('Unexpected error:', err);
+    console.error('Error in /api/test-posts:', err);
+    
+    // Determine the error type and return appropriate response
+    if (err instanceof Error) {
+      if (err.message.includes('connection')) {
+        return NextResponse.json({ 
+          error: 'Database connection error',
+          message: 'Unable to connect to the database. Please try again later.',
+          details: err.message
+        }, { status: 503 });
+      }
+      
+      if (err.message.includes('permission')) {
+        return NextResponse.json({ 
+          error: 'Permission denied',
+          message: 'Not authorized to access this resource',
+          details: err.message
+        }, { status: 403 });
+      }
+    }
+
+    // Generic error response
     return NextResponse.json({ 
       error: 'Internal Server Error',
-      details: err instanceof Error ? err.message : 'Unknown error'
+      message: 'An unexpected error occurred',
+      details: err instanceof Error ? err.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }

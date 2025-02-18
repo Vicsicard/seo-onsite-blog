@@ -19,6 +19,10 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
+    domains: [
+      'raw.githubusercontent.com',
+      '6be7e0906f1487fecf0b9cbd301defd6.cdn.bubble.io'
+    ],
   },
 };
 

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import ErrorBoundary from '@/components/ErrorBoundary';
+import Footer from '@/components/Footer';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -96,7 +98,10 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-50 min-h-screen`}
       >
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+        <Footer />
       </body>
     </html>
   );

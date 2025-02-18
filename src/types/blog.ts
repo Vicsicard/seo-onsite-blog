@@ -1,10 +1,10 @@
 export interface BlogPost {
-  id: string;           // uuid
-  content: string;      // text
-  title: string;        // text
-  slug: string | null;  // text, nullable
-  created_at: string | null;  // text, nullable
-  tags: string | null;  // text, nullable
+  id: string;
+  content: string;
+  title: string;
+  slug: string | null;
+  created_at: string | null;
+  tags: string | null;
 }
 
 // Helper function to parse tags string into array

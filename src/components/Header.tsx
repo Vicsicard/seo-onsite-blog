@@ -38,10 +38,10 @@ export default function Header() {
                   Blog
                 </Link>
                 <Link
-                  href="/about"
+                  href="/tips"
                   className="text-white hover:text-accent transition-colors font-medium"
                 >
-                  About
+                  Jerome's Tips
                 </Link>
               </div>
             </div>

@@ -1,21 +1,67 @@
 // lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://duofozyjmsicofmnmsal.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1b2ZvenlqbXNpY29mbW5tc2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc3MzQ2NTcsImV4cCI6MjA1MzMxMDY1N30.c_By4uNid3afZBtysYPiyEHcEGih-naisbqmzOnf1dQ';
+const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY;
 
+// Validate environment variables
 if (!supabaseUrl) {
-  throw new Error('Missing NEXT_PUBLIC_BLOG_SUPABASE_URL');
+  console.error('[Supabase] Missing Supabase URL');
+  throw new Error('Missing Supabase URL. Please check your environment variables.');
 }
 
 if (!supabaseAnonKey) {
-  throw new Error('Missing NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY');
+  console.error('[Supabase] Missing Supabase Anon Key');
+  throw new Error('Missing Supabase Anon Key. Please check your environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+console.log('[Supabase] Initializing client...');
+console.log('[Supabase] Using URL:', supabaseUrl);
+
+// Create Supabase client with error handling
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: true,
     detectSessionInUrl: false
+  },
+  db: {
+    schema: 'public'
   }
 });
+
+// Test the connection
+const testConnection = async () => {
+  console.log('[Supabase] Testing database connection...');
+  
+  try {
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .select('count')
+      .limit(1);
+
+    if (error) {
+      console.error('[Supabase] Connection test failed:', error);
+      throw error;
+    }
+
+    console.log('[Supabase] Connection successful');
+    return true;
+  } catch (err) {
+    console.error('[Supabase] Error testing connection:', err);
+    return false;
+  }
+};
+
+// Execute connection test
+testConnection()
+  .then(success => {
+    if (!success) {
+      console.error('[Supabase] Failed to establish initial connection');
+    }
+  })
+  .catch(err => {
+    console.error('[Supabase] Unexpected error during connection test:', err);
+  });
+
+export { supabase, testConnection };
