@@ -31,20 +31,12 @@ export default function Hero() {
           Explore expert insights, contractor recommendations, and remodeling tips for Denver homeowners.
         </h2>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex justify-center">
           <Link
             href="/blog"
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-black bg-white hover:bg-gray-100 transition-colors duration-200"
+            className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-black bg-white hover:bg-gray-100 transition-colors duration-200"
           >
-            Explore Blogs
-          </Link>
-          <Link
-            href="https://topcontractorsdenver.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-black transition-colors duration-200"
-          >
-            Find a Contractor
+            Explore Our Blog
           </Link>
         </div>
       </div>

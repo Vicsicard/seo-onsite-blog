@@ -77,23 +77,6 @@ export default async function Home() {
           </div>
         )}
       </section>
-
-      <section className="bg-white/5 backdrop-blur-sm py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">Ready to Start Your Remodeling Project?</h2>
-          <p className="text-gray-300 mb-8">
-            Connect with Denver's top-rated contractors and bring your vision to life.
-          </p>
-          <Link
-            href="https://topcontractorsdenver.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-black bg-white hover:bg-gray-100 transition-colors duration-200"
-          >
-            Find Your Perfect Contractor
-          </Link>
-        </div>
-      </section>
     </main>
   );
 }
