@@ -3,6 +3,7 @@ import Header from '@/components/Header';
 import { fetchPosts } from '../../../../lib/api';
 import type { BlogPost } from '../../../types/blog';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'Luxury Home Remodeling | Denver Home Renovation',
@@ -52,22 +53,49 @@ export const revalidate = 10;
 
 export default async function HomeRemodelingPage() {
   const allPosts = await fetchPosts();
-  // Filter posts for general home remodeling (you'll need to add categories to your posts)
   const homePosts = allPosts.filter(post => 
     post.title.toLowerCase().includes('home') || 
     post.title.toLowerCase().includes('renovation') ||
     post.title.toLowerCase().includes('remodel')
   );
+  const imageUrl = 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg';
 
   return (
     <div>
       <Header />
       
+      <div className="relative">
+        {/* Category Header Image */}
+        <div className="relative h-[400px] w-full">
+          <Image
+            src={imageUrl}
+            alt="Luxury Home Remodeling in Denver - Elegant modern home interior"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+            quality={90}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 to-black/50" />
+          
+          {/* Category Header Content */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center max-w-4xl mx-auto px-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                Luxury Home Remodeling
+              </h1>
+              <p className="text-xl text-gray-200 max-w-2xl mx-auto">
+                Transform your entire living space with our comprehensive home remodeling expertise.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Luxury Home Remodeling</h1>
+          <h2 className="text-3xl font-bold text-white mb-4">Latest Home Remodeling Articles</h2>
           <p className="text-gray-300 max-w-2xl mx-auto">
-            Transform your entire living space with our comprehensive home remodeling guides.
             From whole-house renovations to specific room upgrades, discover expert tips and the latest trends.
           </p>
         </div>
