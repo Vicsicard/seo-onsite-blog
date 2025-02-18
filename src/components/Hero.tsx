@@ -2,17 +2,21 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Hero() {
+  // Convert GitHub URL to raw URL
+  const imageUrl = 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-main-image-8888888888888.jpg';
+
   return (
     <div className="relative min-h-[600px] flex items-center justify-center">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/hero-denver.jpg"
-          alt="Luxury home remodeling in Denver"
+          src={imageUrl}
+          alt="Luxury home remodeling in Denver - Beautiful modern interior design"
           fill
           className="object-cover"
           priority
           sizes="100vw"
+          quality={90}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/50" />
       </div>
