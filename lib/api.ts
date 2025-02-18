@@ -27,34 +27,33 @@ function isAllowedTag(tag: string): tag is AllowedTag {
 
 // Convert Markdown to HTML with proper styling
 export function convertMarkdownToHtml(markdown: string): string {
-  const html = marked(markdown, {
-    gfm: true,
-    breaks: true,
-    sanitize: false
-  });
-  return html;
+  if (!markdown) return '';
+  
+  try {
+    const html = marked(markdown, {
+      gfm: true,
+      breaks: true,
+      sanitize: false
+    });
+    return html;
+  } catch (error) {
+    console.error('Error converting markdown to HTML:', error);
+    return markdown;
+  }
 }
 
 export async function fetchPostsByTag(options: FetchPostsOptions): Promise<PaginatedPosts> {
-  if (!supabase) {
-    console.error("Supabase client not initialized.");
-    return {
-      posts: [],
-      total: 0,
-      totalPages: 0,
-      currentPage: 1
-    };
-  }
+  const defaultResponse = {
+    posts: [],
+    total: 0,
+    totalPages: 0,
+    currentPage: 1
+  };
 
   // Validate tag
   if (!isAllowedTag(options.tag)) {
     console.error(`Invalid tag: ${options.tag}. Must be one of: ${ALLOWED_TAGS.join(', ')}`);
-    return {
-      posts: [],
-      total: 0,
-      totalPages: 0,
-      currentPage: 1
-    };
+    return defaultResponse;
   }
 
   try {
@@ -81,6 +80,11 @@ export async function fetchPostsByTag(options: FetchPostsOptions): Promise<Pagin
       throw error;
     }
 
+    if (!data) {
+      console.log("No posts found for tag:", tag);
+      return defaultResponse;
+    }
+
     // Additional validation to ensure posts have exactly the tag we want
     const filteredPosts = data.filter(post => 
       Array.isArray(post.tags) && 
@@ -90,7 +94,8 @@ export async function fetchPostsByTag(options: FetchPostsOptions): Promise<Pagin
     // Process markdown content for each post
     const processedPosts = filteredPosts.map(post => ({
       ...post,
-      content: convertMarkdownToHtml(post.content)
+      content: post.content ? convertMarkdownToHtml(post.content) : '',
+      excerpt: post.excerpt || post.content?.slice(0, 150) || ''
     }));
 
     const total = filteredPosts.length;
@@ -104,18 +109,13 @@ export async function fetchPostsByTag(options: FetchPostsOptions): Promise<Pagin
     };
   } catch (err) {
     console.error("An unexpected error occurred:", err);
-    return {
-      posts: [],
-      total: 0,
-      totalPages: 0,
-      currentPage: 1
-    };
+    return defaultResponse;
   }
 }
 
 export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
-  if (!supabase) {
-    console.error("Supabase client not initialized.");
+  if (!slug) {
+    console.error("No slug provided");
     return null;
   }
 
@@ -133,6 +133,7 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
     }
 
     if (!data) {
+      console.log("No post found for slug:", slug);
       return null;
     }
 
@@ -145,10 +146,13 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
       return null;
     }
 
-    // Convert markdown content to HTML
+    // Convert markdown content to HTML and ensure all fields exist
     return {
       ...data,
-      content: convertMarkdownToHtml(data.content)
+      content: data.content ? convertMarkdownToHtml(data.content) : '',
+      excerpt: data.excerpt || data.content?.slice(0, 150) || '',
+      seo_description: data.seo_description || data.excerpt || data.content?.slice(0, 150) || '',
+      seo_title: data.seo_title || data.title
     };
   } catch (err) {
     console.error("An unexpected error occurred:", err);
