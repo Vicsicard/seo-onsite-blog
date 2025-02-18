@@ -49,15 +49,15 @@ export default function BlogPage() {
     },
     {
       title: "Luxury Bathroom Remodeling",
-      description: "Elevate your bathroom into a spa-like retreat with our luxury remodeling insights.",
+      description: "Create your perfect spa-like retreat with expert insights and inspiration.",
       href: "/blog/bathroom",
       imageUrl: "https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-bathroom-image-333333.jpg"
     },
     {
-      title: "Luxury Home Remodeling",
-      description: "Discover comprehensive home transformation ideas and expert guidance for your Denver luxury home.",
+      title: "Whole-Home Transformations",
+      description: "Discover comprehensive remodeling solutions to transform your entire living space.",
       href: "/blog/home",
-      imageUrl: "https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg"
+      imageUrl: "https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-home-default-image-333333.jpg"
     }
   ];
 

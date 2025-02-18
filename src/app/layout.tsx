@@ -24,7 +24,6 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://onsiteproposal.com'),
   title: {
     default: "Luxury Home Remodeling Blog | OnsiteProposal",
     template: "%s | OnsiteProposal",
@@ -45,7 +44,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://onsiteproposal.com/',
+    url: 'https://onsiteproposal.com',
     siteName: 'OnsiteProposal',
     title: {
       default: "Luxury Home Remodeling Blog",
@@ -79,9 +78,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  verification: {
-    google: 'your-google-verification-code',
   },
   alternates: {
     canonical: 'https://onsiteproposal.com',
