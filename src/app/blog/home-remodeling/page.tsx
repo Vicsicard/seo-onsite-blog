@@ -1,34 +1,45 @@
 import { Metadata } from 'next';
-import Header from '@/components/Header';
-import { fetchPosts } from '../../../../lib/api';
-import type { BlogPost } from '../../../types/blog';
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
+import Header from '@/components/Header';
+import { fetchPostsByTag } from '../../../../lib/api';
+import type { BlogPost } from '../../../types/blog';
 
 export const metadata: Metadata = {
   title: 'Luxury Home Remodeling | Denver Home Renovation',
-  description: 'Comprehensive guides and expert insights for luxury home remodeling in Denver. Transform your entire living space with our renovation expertise.',
+  description: 'Expert tips and insights for luxury home remodeling in Denver. Transform your entire living space with comprehensive renovation expertise.',
 };
 
-function BlogPostCard({ post }: { post: BlogPost }) {
+interface BlogCardProps {
+  post: BlogPost;
+}
+
+function BlogCard({ post }: BlogCardProps) {
   return (
-    <article className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+    <article className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300">
       {post.featured_image_url && (
         <div className="relative h-48 w-full">
-          <img
+          <Image
             src={post.featured_image_url}
             alt={post.title}
-            className="object-cover w-full h-full"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </div>
       )}
       <div className="p-6">
         <h2 className="text-xl font-bold mb-2">
-          <Link href={`/blog/${post.slug}`} className="text-white hover:text-accent transition-colors">
+          <Link 
+            href={`/blog/${post.slug}`}
+            className="text-white hover:text-accent transition-colors"
+          >
             {post.title}
           </Link>
         </h2>
-        <p className="text-gray-300 mb-4 line-clamp-2">{post.seo_description}</p>
+        <p className="text-gray-300 mb-4 line-clamp-2">
+          {post.excerpt || post.seo_description}
+        </p>
         <div className="flex justify-between items-center">
           <time className="text-sm text-gray-400" dateTime={post.published_date}>
             {new Date(post.published_date).toLocaleDateString('en-US', {
@@ -49,15 +60,61 @@ function BlogPostCard({ post }: { post: BlogPost }) {
   );
 }
 
-export const revalidate = 10;
-
-export default async function HomeRemodelingPage() {
-  const allPosts = await fetchPosts();
-  const homePosts = allPosts.filter(post => 
-    post.title.toLowerCase().includes('home') || 
-    post.title.toLowerCase().includes('renovation') ||
-    post.title.toLowerCase().includes('remodel')
+function Pagination({ 
+  currentPage, 
+  totalPages, 
+  onPageChange 
+}: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex justify-center space-x-2 pt-8">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-md hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Previous
+      </button>
+      
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`px-4 py-2 text-sm font-medium rounded-md ${
+            currentPage === page
+              ? 'bg-accent text-white'
+              : 'text-white bg-white/10 hover:bg-white/20'
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+      
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-md hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Next
+      </button>
+    </div>
   );
+}
+
+export default async function HomeRemodelingPage({
+  searchParams,
+}: {
+  searchParams: { page?: string }
+}) {
+  const currentPage = Number(searchParams.page) || 1;
+  const { posts, totalPages } = await fetchPostsByTag({
+    tag: 'homeremodeling',
+    page: currentPage
+  });
+
   const imageUrl = 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg';
 
   return (
@@ -69,7 +126,7 @@ export default async function HomeRemodelingPage() {
         <div className="relative h-[400px] w-full">
           <Image
             src={imageUrl}
-            alt="Luxury Home Remodeling in Denver - Elegant modern home interior"
+            alt="Luxury Home Remodeling in Denver - Complete home transformation"
             fill
             className="object-cover"
             priority
@@ -93,23 +150,31 @@ export default async function HomeRemodelingPage() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white mb-4">Latest Home Remodeling Articles</h2>
-          <p className="text-gray-300 max-w-2xl mx-auto">
-            From whole-house renovations to specific room upgrades, discover expert tips and the latest trends.
-          </p>
-        </div>
-
-        {homePosts.length === 0 ? (
+        {posts.length === 0 ? (
           <div className="text-center text-gray-300">
-            <p>No home remodeling articles found. Check back soon for new content!</p>
+            <h2 className="text-2xl font-bold mb-4">No Articles Found</h2>
+            <p>Check back soon for new home remodeling content!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {homePosts.map((post: BlogPost) => (
-              <BlogPostCard key={post.id} post={post} />
-            ))}
-          </div>
+          <>
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {posts.map((post) => (
+                <BlogCard key={post.id} post={post} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => {
+                  window.location.href = `/blog/home-remodeling?page=${page}`;
+                }}
+              />
+            )}
+          </>
         )}
       </main>
     </div>

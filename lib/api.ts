@@ -1,107 +1,115 @@
 // lib/api.ts
 import { supabase } from './supabaseClient';
 import { marked } from 'marked';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { dracula } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import type { BlogPost } from '../src/types/blog';
 
-// Configure marked with a custom renderer for code blocks
-const renderer = {
-  code(code: string, language: string) {
-    return SyntaxHighlighter({
-      language,
-      children: code,
-      style: dracula,
-      PreTag: 'div'
-    });
-  }
-};
+const POSTS_PER_PAGE = 9;
+const ALLOWED_TAGS = ['homeremodeling', 'kitchenremodeling', 'bathroomremodeling'] as const;
+type AllowedTag = typeof ALLOWED_TAGS[number];
 
-marked.use({ renderer });
-
-// Test function to verify connection and table structure
-export async function testSupabaseConnection() {
-  if (!supabase) {
-    console.error("Supabase client not initialized.");
-    return { success: false, error: "Client not initialized" };
-  }
-
-  try {
-    // Test basic connection
-    const { data: testData, error: testError } = await supabase
-      .from('blog_posts')
-      .select('count');
-
-    if (testError) {
-      console.error("Error connecting to blog_posts table:", testError);
-      return { 
-        success: false, 
-        error: testError.message,
-        details: "Table might not exist or permissions are not set correctly"
-      };
-    }
-
-    // Get table information
-    const { data: tableInfo, error: schemaError } = await supabase
-      .rpc('get_table_info', { table_name: 'blog_posts' });
-
-    if (schemaError) {
-      console.error("Error getting table schema:", schemaError);
-      return { 
-        success: true, 
-        message: "Connected but couldn't fetch schema",
-        error: schemaError.message 
-      };
-    }
-
-    return {
-      success: true,
-      message: "Successfully connected to Supabase",
-      tableInfo
-    };
-  } catch (err) {
-    console.error("An unexpected error occurred:", err);
-    return { success: false, error: String(err) };
-  }
+interface FetchPostsOptions {
+  tag: AllowedTag;
+  page?: number;
+  limit?: number;
 }
 
-export async function fetchPosts(): Promise<BlogPost[]> {
+interface PaginatedPosts {
+  posts: BlogPost[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+// Validate if a tag is allowed
+function isAllowedTag(tag: string): tag is AllowedTag {
+  return ALLOWED_TAGS.includes(tag as AllowedTag);
+}
+
+// Convert Markdown to HTML with proper styling
+export function convertMarkdownToHtml(markdown: string): string {
+  const html = marked(markdown, {
+    gfm: true,
+    breaks: true,
+    sanitize: false
+  });
+  return html;
+}
+
+export async function fetchPostsByTag(options: FetchPostsOptions): Promise<PaginatedPosts> {
   if (!supabase) {
     console.error("Supabase client not initialized.");
-    return [];
+    return {
+      posts: [],
+      total: 0,
+      totalPages: 0,
+      currentPage: 1
+    };
+  }
+
+  // Validate tag
+  if (!isAllowedTag(options.tag)) {
+    console.error(`Invalid tag: ${options.tag}. Must be one of: ${ALLOWED_TAGS.join(', ')}`);
+    return {
+      posts: [],
+      total: 0,
+      totalPages: 0,
+      currentPage: 1
+    };
   }
 
   try {
-    console.log("Attempting to fetch posts from Supabase...");
-    
-    // First, let's check if we can access the table
-    const { data: tableInfo, error: tableError } = await supabase
+    const {
+      tag,
+      page = 1,
+      limit = POSTS_PER_PAGE
+    } = options;
+
+    const start = (page - 1) * limit;
+    const end = start + limit - 1;
+
+    // Build query with strict tag matching
+    const { data, error, count } = await supabase
       .from('blog_posts')
-      .select('count');
-
-    if (tableError) {
-      console.error("Error checking blog_posts table:", tableError);
-      return [];
-    }
-
-    console.log("Successfully connected to blog_posts table");
-
-    // Now fetch the actual posts
-    const { data, error } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .order('published_date', { ascending: false });
+      .select('*', { count: 'exact' })
+      .eq('status', 'published')
+      .contains('tags', [tag]) // Exact tag match
+      .order('published_date', { ascending: false })
+      .range(start, end);
 
     if (error) {
       console.error("Error fetching posts:", error);
-      throw new Error("Failed to fetch blog posts.");
+      throw error;
     }
 
-    console.log("Successfully fetched posts:", data?.length || 0, "posts found");
-    return data || [];
+    // Additional validation to ensure posts have exactly the tag we want
+    const filteredPosts = data.filter(post => 
+      Array.isArray(post.tags) && 
+      post.tags.some(t => t === tag)
+    );
+
+    // Process markdown content for each post
+    const processedPosts = filteredPosts.map(post => ({
+      ...post,
+      content: convertMarkdownToHtml(post.content)
+    }));
+
+    const total = filteredPosts.length;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      posts: processedPosts,
+      total,
+      totalPages,
+      currentPage: page
+    };
   } catch (err) {
     console.error("An unexpected error occurred:", err);
-    return [];
+    return {
+      posts: [],
+      total: 0,
+      totalPages: 0,
+      currentPage: 1
+    };
   }
 }
 
@@ -112,12 +120,11 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
   }
 
   try {
-    console.log("Attempting to fetch post with slug:", slug);
-    
     const { data, error } = await supabase
       .from('blog_posts')
       .select('*')
       .eq('slug', slug)
+      .eq('status', 'published')
       .single();
 
     if (error) {
@@ -125,56 +132,38 @@ export async function fetchPostBySlug(slug: string): Promise<BlogPost | null> {
       return null;
     }
 
-    console.log("Successfully fetched post:", data?.title || 'No post found');
-    return data;
+    if (!data) {
+      return null;
+    }
+
+    // Verify the post has at least one of our allowed tags
+    const hasAllowedTag = Array.isArray(data.tags) && 
+      data.tags.some(tag => ALLOWED_TAGS.includes(tag as AllowedTag));
+
+    if (!hasAllowedTag) {
+      console.error("Post does not have any allowed tags");
+      return null;
+    }
+
+    // Convert markdown content to HTML
+    return {
+      ...data,
+      content: convertMarkdownToHtml(data.content)
+    };
   } catch (err) {
     console.error("An unexpected error occurred:", err);
     return null;
   }
 }
 
-// Function to create a test post
-export async function createTestPost() {
-  if (!supabase) {
-    console.error("Supabase client not initialized.");
-    return null;
-  }
-
-  const testPost = {
-    title: "Test Kitchen Remodeling Article",
-    slug: "test-kitchen-remodeling-article",
-    content: "# Test Content\n\nThis is a test article about kitchen remodeling.",
-    excerpt: "A test article about kitchen remodeling",
-    seo_title: "Test Kitchen Remodeling | Denver Luxury Homes",
-    seo_description: "Learn about luxury kitchen remodeling in Denver with our test article.",
-    featured_image_url: "https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-kitchen-image-333333333.jpg",
-    published_date: new Date().toISOString(),
-    category: "kitchen",
-    status: "published",
-    tags: ["kitchen", "remodeling", "test"],
-    meta_data: {
-      reading_time: 5,
-      views: 0,
-      likes: 0
-    }
+// Helper function to get tag for category
+export function getCategoryTag(category: string): AllowedTag | null {
+  const categoryTags: Record<string, AllowedTag> = {
+    'home-remodeling': 'homeremodeling',
+    'kitchen-remodeling': 'kitchenremodeling',
+    'bathroom-remodeling': 'bathroomremodeling'
   };
-
-  try {
-    const { data, error } = await supabase
-      .from('blog_posts')
-      .insert([testPost])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating test post:", error);
-      return null;
-    }
-
-    console.log("Successfully created test post:", data);
-    return data;
-  } catch (err) {
-    console.error("An unexpected error occurred:", err);
-    return null;
-  }
+  
+  const tag = categoryTags[category];
+  return tag || null;
 }
