@@ -2,15 +2,16 @@ import { Metadata } from 'next';
 import { fetchPostBySlug } from '@/lib/api';
 import BlogPost from '@/components/BlogPost';
 import Header from '@/components/Header';
+import { notFound } from 'next/navigation';
 
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const post = await fetchPostBySlug(params.slug);
+  const { post, error } = await fetchPostBySlug(params.slug);
   
-  if (!post) {
+  if (error || !post) {
     return {
       title: 'Post Not Found | Denver Luxury Home Remodeling',
       description: 'The requested blog post could not be found.',
@@ -19,7 +20,7 @@ export async function generateMetadata({
 
   return {
     title: `${post.title} | Denver Luxury Home Remodeling`,
-    description: post.excerpt || 'Read this insightful article about luxury home remodeling in Denver.',
+    description: post.excerpt || post.description || 'Read this insightful article about luxury home remodeling in Denver.',
   };
 }
 
@@ -28,27 +29,24 @@ export default async function BlogPostPage({
 }: {
   params: { slug: string };
 }) {
-  const post = await fetchPostBySlug(params.slug);
+  const { post, error } = await fetchPostBySlug(params.slug);
+
+  if (error) {
+    console.error('[BlogPostPage] Error fetching post:', error);
+    throw new Error('Failed to load blog post');
+  }
 
   if (!post) {
-    return (
-      <div>
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-200">Post Not Found</h1>
-            <p className="mt-4 text-gray-400">The requested blog post could not be found.</p>
-          </div>
-        </div>
-      </div>
-    );
+    notFound();
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-900">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <BlogPost post={post} isPreview={false} />
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <article className="prose prose-invert lg:prose-xl mx-auto">
+          <BlogPost post={post} isPreview={false} />
+        </article>
       </main>
     </div>
   );

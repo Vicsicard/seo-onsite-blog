@@ -33,13 +33,13 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '6be7e0906f1487fecf0b9cbd301defd6.cdn.bubble.io',
       }
     ],
-    domains: [
-      'raw.githubusercontent.com',
-      '6be7e0906f1487fecf0b9cbd301defd6.cdn.bubble.io'
-    ],
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

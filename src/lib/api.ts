@@ -155,6 +155,11 @@ function processPostContent(content: string): ProcessedContent {
   }
 }
 
+function removeCTAText(content: string): string {
+  // Remove the old CTA text and any surrounding whitespace
+  return content.replace(/\[color=[^\]]*\]\[highlight=[^\]]*\]Looking for Home Remodelers in Denver[\s\S]*$/, '').trim();
+}
+
 export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: string; page?: number; limit?: number }) {
   if (!tag) {
     console.error('[API] Tag is required');
@@ -239,10 +244,12 @@ export async function fetchPostBySlug(slug: string) {
       return { post: null, error: new Error('Post not found') };
     }
 
-    // Extract image from content
+    // Extract image from content and remove CTA text
     const { imageUrl, cleanContent } = post.content 
       ? extractImageFromContent(post.content)
       : { imageUrl: null, cleanContent: '' };
+
+    const contentWithoutCTA = removeCTAText(cleanContent);
 
     // Determine tag for default image
     const tag = post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
@@ -251,7 +258,7 @@ export async function fetchPostBySlug(slug: string) {
 
     const transformedPost = {
       ...post,
-      content: cleanContent,
+      content: contentWithoutCTA,
       image_url: imageUrl || DEFAULT_IMAGES[tag]
     } as BlogPost;
 
