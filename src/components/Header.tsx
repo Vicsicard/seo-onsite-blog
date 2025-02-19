@@ -1,6 +1,13 @@
 import Link from 'next/link';
 
 export default function Header() {
+  const navigation = [
+    { name: 'Kitchen', href: '/blog/kitchen' },
+    { name: 'Bathroom', href: '/blog/bathroom' },
+    { name: 'Home', href: '/blog/home' },
+    { name: 'Tips', href: '/tips' },
+  ];
+
   return (
     <header className="relative">
       {/* Background image with overlay */}
@@ -25,24 +32,15 @@ export default function Header() {
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-center space-x-8">
-                <Link
-                  href="/"
-                  className="text-white hover:text-accent transition-colors font-medium"
-                >
-                  Home
-                </Link>
-                <Link
-                  href="/blog"
-                  className="text-white hover:text-accent transition-colors font-medium"
-                >
-                  Blog
-                </Link>
-                <Link
-                  href="/tips"
-                  className="text-white hover:text-accent transition-colors font-medium"
-                >
-                  Jerome's Tips
-                </Link>
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="text-white hover:text-accent transition-colors font-medium"
+                  >
+                    {item.name}
+                  </Link>
+                ))}
               </div>
             </div>
             {/* Mobile menu button */}

@@ -2,22 +2,55 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import { fetchPostsByTag } from '@/lib/api';
-import BlogPost from '@/components/BlogPost';
+import BlogGrid from '@/components/BlogGrid';
 
 export const metadata: Metadata = {
   title: "Jerome's Tips | Denver Luxury Home Remodeling",
   description: "Expert insights and tips from Jerome Garcia, Denver's premier luxury remodeling expert",
+  openGraph: {
+    title: "Jerome's Tips | Denver Luxury Home Remodeling",
+    description: "Expert insights and tips from Jerome Garcia, Denver's premier luxury remodeling expert",
+    url: 'https://luxuryhomeremodelingdenver.com/tips',
+    siteName: 'Denver Luxury Home Remodeling',
+    images: [
+      {
+        url: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg',
+        width: 1200,
+        height: 630,
+        alt: "Jerome Garcia's Luxury Remodeling Tips",
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
 };
 
-export default async function TipsPage() {
-  const { posts } = await fetchPostsByTag({ 
+export default async function TipsPage({
+  searchParams,
+}: {
+  searchParams: { page?: string };
+}) {
+  const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
+  console.log('[TipsPage] Fetching page:', currentPage);
+
+  const { posts, error } = await fetchPostsByTag({ 
     tag: 'jerome',
-    page: 1,
+    page: currentPage,
     limit: 9
   });
 
+  if (error) {
+    console.error('[TipsPage] Error fetching posts:', error);
+    throw new Error('Failed to load tips posts');
+  }
+
+  // Log the content of each post to verify cleanup
+  posts.forEach(post => {
+    console.log(`[TipsPage] Post "${post.title}" content length:`, post.content.length);
+  });
+
   return (
-    <div>
+    <div className="min-h-screen bg-gray-900">
       <Header />
       
       {/* Hero Section */}
@@ -46,19 +79,13 @@ export default async function TipsPage() {
       </div>
 
       {/* Blog Posts Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {posts.length === 0 ? (
-          <div className="text-center text-gray-200">
-            <p>No posts available yet. Check back soon for Jerome's expert tips!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
-              <BlogPost key={post.id} post={post} isPreview={true} />
-            ))}
-          </div>
-        )}
-      </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <BlogGrid
+          posts={posts}
+          currentPage={currentPage}
+          totalPages={Math.ceil((posts?.length || 0) / 9)}
+        />
+      </main>
     </div>
   );
 }
