@@ -43,12 +43,28 @@ export default function BlogGrid({ posts, currentPage, totalPages, onPageChange 
     );
   }
 
+  if (posts.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-xl text-gray-400">No posts available at this time.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {posts.map((post) => (
-          <BlogPostComponent key={post.id} post={post} isPreview={true} />
-        ))}
+        {posts.map((post) => {
+          // Verify post has required fields
+          if (!post || !post.title || !post.slug) {
+            console.error('[BlogGrid] Invalid post data:', post);
+            return null;
+          }
+
+          return (
+            <BlogPostComponent key={post.id} post={post} isPreview={true} />
+          );
+        })}
       </div>
 
       {totalPages > 1 && (

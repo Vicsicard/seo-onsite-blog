@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Header from '@/components/Header';
-import { fetchPostsByTag } from '@/lib/api';
+import { fetchPosts } from '@/lib/api';
 import BlogGrid from '@/components/BlogGrid';
+import { createClient } from '@supabase/supabase-js';
 
 export const metadata: Metadata = {
   title: "Jerome's Tips | Denver Luxury Home Remodeling",
@@ -30,62 +31,133 @@ export default async function TipsPage({
 }: {
   searchParams: { page?: string };
 }) {
-  const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
-  console.log('[TipsPage] Fetching page:', currentPage);
+  console.log('[TipsPage] Starting to render...');
+  
+  try {
+    // First verify we can connect to Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY;
 
-  const { posts, error } = await fetchPostsByTag({ 
-    tag: 'jerome',
-    page: currentPage,
-    limit: 9
-  });
-
-  if (error) {
-    console.error('[TipsPage] Error fetching posts:', error);
-    throw new Error('Failed to load tips posts');
-  }
-
-  // Log the content of each post to verify cleanup
-  posts.forEach(post => {
-    console.log(`[TipsPage] Post "${post.title}" content length:`, post.content.length);
-  });
-
-  return (
-    <div className="min-h-screen bg-gray-900">
-      <Header />
-      
-      {/* Hero Section */}
-      <div className="relative h-[400px] w-full">
-        <Image
-          src="https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg"
-          alt="Jerome Garcia - Denver Luxury Remodeling Expert"
-          fill
-          className="object-cover"
-          priority
-          sizes="100vw"
-          quality={90}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 to-black/50" />
-        
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center max-w-4xl mx-auto px-4">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Today's Luxury Remodeling Tips
-            </h1>
-            <p className="text-xl text-gray-200 mb-8">
-              Join Jerome Garcia, Denver's premier luxury remodeling expert, as he shares his latest insights and engages with readers about their home transformation projects.
-            </p>
-          </div>
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('[TipsPage] Missing environment variables');
+      return (
+        <div className="min-h-screen bg-gray-900">
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center text-white">
+              <h1 className="text-4xl font-bold mb-4">Configuration Error</h1>
+              <p className="text-xl">The site is currently experiencing technical difficulties. Please try again later.</p>
+            </div>
+          </main>
         </div>
-      </div>
+      );
+    }
 
-      {/* Blog Posts Grid */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <BlogGrid
-          posts={posts}
-          currentPage={currentPage}
-          totalPages={Math.ceil((posts?.length || 0) / 9)}
-        />
-      </main>
-    </div>
-  );
+    console.log('[TipsPage] Environment variables verified');
+
+    // Test direct Supabase connection
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { error: testError } = await supabase
+      .from('blog_posts')
+      .select('count');
+
+    if (testError) {
+      console.error('[TipsPage] Database connection test failed:', testError);
+      return (
+        <div className="min-h-screen bg-gray-900">
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center text-white">
+              <h1 className="text-4xl font-bold mb-4">Database Connection Error</h1>
+              <p className="text-xl">Unable to connect to the database. Please try again later.</p>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    console.log('[TipsPage] Database connection successful');
+
+    // Now proceed with the actual page data
+    const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
+    if (isNaN(currentPage) || currentPage < 1) {
+      return (
+        <div className="min-h-screen bg-gray-900">
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center text-white">
+              <h1 className="text-4xl font-bold mb-4">Invalid Page Number</h1>
+              <p className="text-xl">The requested page number is invalid.</p>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    console.log('[TipsPage] Fetching page:', currentPage);
+
+    const { posts, error } = await fetchPosts('jerome', (currentPage - 1) * 9, currentPage * 9 - 1);
+
+    if (error) {
+      console.error('[TipsPage] Error fetching posts:', error);
+      return (
+        <div className="min-h-screen bg-gray-900">
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center text-white">
+              <h1 className="text-4xl font-bold mb-4">Error Loading Tips</h1>
+              <p className="text-xl">Unable to load tips at this time. Please try again later.</p>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    if (!Array.isArray(posts) || posts.length === 0) {
+      return (
+        <div className="min-h-screen bg-gray-900">
+          <Header />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center text-white">
+              <h1 className="text-4xl font-bold mb-4">No Tips Available</h1>
+              <p className="text-xl">Check back soon for new tips and insights!</p>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // Calculate total pages
+    const totalPages = Math.ceil(posts.length / 9);
+
+    return (
+      <div className="min-h-screen bg-gray-900">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-16">
+            <h1 className="text-4xl font-bold text-white mb-4">Jerome's Tips & Insights</h1>
+            <p className="text-xl text-gray-300">Expert advice from Denver's premier luxury remodeling specialist</p>
+          </div>
+          <BlogGrid 
+            posts={posts} 
+            currentPage={currentPage}
+            totalPages={totalPages}
+          />
+        </main>
+      </div>
+    );
+  } catch (error) {
+    console.error('[TipsPage] Unexpected error:', error);
+    return (
+      <div className="min-h-screen bg-gray-900">
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center text-white">
+            <h1 className="text-4xl font-bold mb-4">Unexpected Error</h1>
+            <p className="text-xl">An unexpected error occurred. Please try again later.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 }

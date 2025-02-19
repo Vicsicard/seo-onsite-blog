@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import dynamic from 'next/dynamic';
-import { fetchPostsByTag } from '@/lib/api';
+import { fetchPosts } from '@/lib/api';
 import { BlogPost as BlogPostType } from '@/types/blog';
 
 const BlogGrid = dynamic(() => import('@/components/BlogGrid'), { ssr: false });
@@ -13,15 +13,16 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { posts, error } = await fetchPostsByTag({ 
-    tag: 'home',
-    page: 1,
-    limit: 9
-  });
+  const { posts, error } = await fetchPosts('home', 0, 8);
 
   if (error) {
     console.error('Error fetching whole-home posts:', error);
-    return <div>Error loading posts</div>;
+    return (
+      <div>
+        <Header />
+        <div>Error loading posts</div>
+      </div>
+    );
   }
 
   // Ensure all posts have image URLs

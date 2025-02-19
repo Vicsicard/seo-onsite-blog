@@ -172,21 +172,52 @@ function processPostContent(content: string): ProcessedContent {
 }
 
 function removeCTAText(content: string): string {
-  console.log('[API] Original content length:', content.length);
-  
-  // Pattern to match the raw text CTA section, accounting for possible variations
-  const pattern = /(?:Call to Action.*?\n)?Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g;
-  
-  const cleanContent = content.replace(pattern, '').trim();
-  
-  console.log('[API] Content after CTA removal length:', cleanContent.length);
-  console.log('[API] Characters removed:', content.length - cleanContent.length);
+  if (!content) return '';
 
-  if (content.length !== cleanContent.length) {
-    console.log('[API] CTA text was found and removed');
-  } else {
-    console.log('[API] No CTA text was found to remove');
-  }
+  // Define patterns for CTA sections
+  const ctaPatterns = [
+    /Call to Action[\s\S]*?(?=\n\n|$)/gi,
+    /Ready to transform[\s\S]*?(?=\n\n|$)/gi,
+    /Contact us today[\s\S]*?(?=\n\n|$)/gi,
+    /Get in touch[\s\S]*?(?=\n\n|$)/gi,
+    /Schedule your consultation[\s\S]*?(?=\n\n|$)/gi,
+    /Let's discuss[\s\S]*?(?=\n\n|$)/gi,
+    /Call \(\d{3}\) \d{3}-\d{4}[\s\S]*?(?=\n\n|$)/gi,
+    /Visit our showroom[\s\S]*?(?=\n\n|$)/gi,
+    /Book your appointment[\s\S]*?(?=\n\n|$)/gi,
+    /Start your project[\s\S]*?(?=\n\n|$)/gi,
+    /Transform your[\s\S]*?(?=\n\n|$)/gi,
+    /Ready for your[\s\S]*?(?=\n\n|$)/gi,
+    /Take the first step[\s\S]*?(?=\n\n|$)/gi,
+    /Begin your journey[\s\S]*?(?=\n\n|$)/gi,
+    /Experience luxury[\s\S]*?(?=\n\n|$)/gi,
+    /Discover how[\s\S]*?(?=\n\n|$)/gi,
+    /Contact Jerome[\s\S]*?(?=\n\n|$)/gi,
+    /New Boiler Plate[\s\S]*?(?=\n\n|$)/gi,
+    /boiler plate[\s\S]*?(?=\n\n|$)/gi,
+    /BOILER PLATE[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Call to Action\*\*[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Ready to transform[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Contact us today[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Get in touch[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Schedule your consultation[\s\S]*?(?=\n\n|$)/gi,
+    /\*\*Let's discuss[\s\S]*?(?=\n\n|$)/gi
+  ];
+
+  // Remove each CTA pattern
+  let cleanContent = content;
+  ctaPatterns.forEach(pattern => {
+    cleanContent = cleanContent.replace(pattern, '');
+  });
+
+  // Remove any trailing whitespace or newlines
+  cleanContent = cleanContent.trim();
+
+  // Remove any remaining boilerplate sections
+  cleanContent = cleanContent.replace(/(?:^|\n)(?:Call to Action|Ready to transform|Contact us today|Get in touch|Schedule your consultation|Let's discuss|Call \(\d{3}\) \d{3}-\d{4}|Visit our showroom|Book your appointment|Start your project|Transform your|Ready for your|Take the first step|Begin your journey|Experience luxury|Discover how|Contact Jerome|New Boiler Plate|boiler plate|BOILER PLATE)[\s\S]*?(?=\n\n|$)/gi, '');
+
+  // Remove any double newlines that might have been created
+  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n');
 
   return cleanContent;
 }
@@ -197,16 +228,19 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
     return { posts: [], error: new Error('Tag is required') };
   }
 
-  console.log(`[API] Fetching posts with tag: ${tag}, page: ${page}, limit: ${limit}`);
+  // Ensure exact match for "Jerome" tag
+  const exactTag = tag.toLowerCase() === 'jerome' ? 'Jerome' : tag;
+  console.log(`[API] Fetching posts with tag: ${exactTag}, page: ${page}, limit: ${limit}`);
+  
   const start = (page - 1) * limit;
   const end = start + limit - 1;
 
   try {
-    // First try exact JSON array match
+    // Use exact match for "Jerome" tag, case-sensitive
     const { data: posts, error } = await supabase
       .from('blog_posts')
       .select('*')
-      .or(`tags.cs.{${tag}},tags.ilike.%"${tag}"%,tags.ilike.%${tag}%`)
+      .ilike('tags', `%${exactTag}%`)  // Use case-insensitive match
       .order('created_at', { ascending: false })
       .range(start, end);
 
@@ -216,11 +250,11 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
     }
 
     if (!posts || posts.length === 0) {
-      console.log('[API] No posts found');
+      console.log(`[API] No posts found for tag: ${exactTag}`);
       return { posts: [], error: null };
     }
 
-    console.log(`[API] Found ${posts.length} posts with tag "${tag}"`);
+    console.log(`[API] Found ${posts.length} posts with tag "${exactTag}"`);
     posts.forEach(post => {
       console.log(`[API] Post "${post.title}":`, {
         tags: post.tags,
@@ -281,30 +315,7 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       query = query.or('tags.cs.{jerome},tags.ilike.%"jerome"%,tags.ilike.%jerome%');
     }
 
-    console.log('[API] Executing query:', {
-      slug,
-      isTip,
-      hasJeromeTag: isTip
-    });
-
     const { data: post, error } = await query.single();
-
-    // Log the raw response
-    console.log('[API] Raw database response:', {
-      post: post ? {
-        id: post.id,
-        slug: post.slug,
-        title: post.title,
-        tags: post.tags,
-        contentLength: post.content?.length,
-        hasContent: !!post.content
-      } : null,
-      error: error ? {
-        message: error.message,
-        code: error.code,
-        details: error.details
-      } : null
-    });
 
     if (error) {
       console.error('[API] Database error:', {
@@ -320,7 +331,7 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       return { post: null, error: new Error('Post not found') };
     }
 
-    // Verify the post has the correct tag if it's a tip
+    // For tips, verify it has the jerome tag
     if (isTip && !post.tags?.toLowerCase().includes('jerome')) {
       console.log(`[API] Post found but doesn't have jerome tag:`, {
         slug,
@@ -328,16 +339,6 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       });
       return { post: null, error: new Error('Post not found') };
     }
-
-    // Log post details before processing
-    console.log('[API] Post found, pre-processing:', {
-      id: post.id,
-      slug: post.slug,
-      title: post.title,
-      tags: post.tags,
-      contentLength: post.content?.length,
-      hasContent: !!post.content
-    });
 
     if (!post.content) {
       console.log('[API] Post has no content:', {
@@ -361,16 +362,7 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
 
     // Extract image and clean content
     const { imageUrl, cleanContent } = extractImageFromContent(post.content);
-
-    console.log('[API] Content processing results:', {
-      hasImageUrl: !!imageUrl,
-      cleanContentLength: cleanContent?.length,
-      firstChars: cleanContent?.substring(0, 100)
-    });
-
     const contentWithoutCTA = removeCTAText(cleanContent);
-
-    console.log('[API] Final content length:', contentWithoutCTA?.length);
 
     // Create transformed post
     const transformedPost = {
@@ -383,20 +375,9 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
                        'home'])
     } as BlogPost;
 
-    // Log the final transformed post
-    console.log('[API] Transformed post:', {
-      id: transformedPost.id,
-      slug: transformedPost.slug,
-      title: transformedPost.title,
-      tags: transformedPost.tags,
-      contentLength: transformedPost.content?.length,
-      hasContent: !!transformedPost.content,
-      hasImageUrl: !!transformedPost.image_url
-    });
-
     return { post: transformedPost, error: null };
   } catch (err) {
-    console.error('[API] Unexpected error:', err);
+    console.error('[API] Error in fetchPostBySlug:', err);
     return { post: null, error: err as Error };
   }
 }
@@ -460,6 +441,48 @@ export async function fetchAllPosts({ page = 1, limit = 9 }: { page?: number; li
     return { posts: transformedPosts, error: null };
   } catch (err) {
     console.error('[API] Unexpected error:', err);
+    return { posts: [], error: err as Error };
+  }
+}
+
+export async function fetchPosts(exactTag: string, start: number = 0, end: number = 9) {
+  console.log(`[API] Fetching posts for tag: ${exactTag}, range: ${start}-${end}`);
+
+  try {
+    const { data: posts, error } = await supabase
+      .from('blog_posts')
+      .select('*')
+      .ilike('tags', `%${exactTag}%`)  // Use case-insensitive match
+      .order('created_at', { ascending: false })
+      .range(start, end);
+
+    if (error) {
+      console.error('[API] Error fetching posts:', error);
+      return { posts: [], error };
+    }
+
+    if (!posts || posts.length === 0) {
+      console.log(`[API] No posts found for tag: ${exactTag}`);
+      return { posts: [], error: null };
+    }
+
+    // Transform posts
+    const transformedPosts = posts.map(post => {
+      const { imageUrl } = extractImageFromContent(post.content || '');
+      
+      return {
+        ...post,
+        image_url: imageUrl || (exactTag === 'jerome' 
+          ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
+          : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
+                         post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
+                         'home'])
+      } as BlogPost;
+    });
+
+    return { posts: transformedPosts, error: null };
+  } catch (err) {
+    console.error('[API] Error in fetchPosts:', err);
     return { posts: [], error: err as Error };
   }
 }

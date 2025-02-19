@@ -15,27 +15,42 @@ interface BlogPostProps {
 const renderMarkdown = (content: string) => {
   console.log('[BlogPost] Starting markdown rendering, content length:', content?.length);
   
+  if (!content) {
+    console.log('[BlogPost] No content to render');
+    return { __html: '' };
+  }
+
   try {
-    const html = marked(content || '');
+    const html = marked(content);
     console.log('[BlogPost] Markdown rendered successfully, HTML length:', html?.length);
     return { __html: html };
   } catch (error) {
     console.error('[BlogPost] Error rendering markdown:', error);
-    return { __html: content || '' };
+    return { __html: '<p>Error rendering content. Please try again later.</p>' };
   }
 };
 
 export default function BlogPostComponent({ post, isPreview = false }: BlogPostProps) {
+  if (!post) {
+    console.error('[BlogPost] No post data provided');
+    return (
+      <div className="text-center text-white p-4">
+        <p>Error: Post data is missing</p>
+      </div>
+    );
+  }
+
   console.log('[BlogPost] Rendering post:', {
-    title: post?.title,
-    slug: post?.slug,
+    title: post.title,
+    slug: post.slug,
     isPreview,
-    hasContent: !!post?.content,
-    contentLength: post?.content?.length
+    hasContent: !!post.content,
+    contentLength: post.content?.length
   });
 
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [renderError, setRenderError] = useState<Error | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -46,110 +61,94 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     return null;
   }
 
-  const formattedDate = post?.created_at 
-    ? new Date(post.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    : null;
-
-  // Additional cleanup for any remaining CTA text
-  const cleanupContent = (content: string) => {
-    console.log('[BlogPost] Cleaning content, initial length:', content?.length);
-    
-    if (!content) {
-      console.log('[BlogPost] No content to clean');
-      return '';
-    }
-    
-    // Remove CTA text
-    let cleanContent = content.replace(/Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g, '').trim();
-    
-    // Remove any HTML comments
-    cleanContent = cleanContent.replace(/<!--[\s\S]*?-->/g, '');
-    
-    // Remove excessive newlines
-    cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n');
-    
-    console.log('[BlogPost] Content cleaned, final length:', cleanContent?.length);
-    return cleanContent;
-  };
-
-  if (!post) {
-    console.error('[BlogPost] No post data provided');
+  if (renderError) {
+    console.error('[BlogPost] Render error:', renderError);
     return (
-      <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-6">
-        <p className="text-red-400">Error loading post data</p>
+      <div className="text-center text-white p-4">
+        <p>Error displaying post. Please try again later.</p>
       </div>
     );
   }
 
-  if (!post.content) {
-    console.error('[BlogPost] Post has no content:', post.slug);
-    return (
-      <div className="bg-yellow-500/10 backdrop-blur-sm rounded-lg p-6">
-        <p className="text-yellow-400">This post has no content</p>
-      </div>
-    );
-  }
+  try {
+    const formattedDate = post.created_at 
+      ? new Date(post.created_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : null;
 
-  const renderContent = () => {
-    console.log('[BlogPost] Starting content render');
-    
+    const defaultImage = '/images/default-blog.jpg';
+    const imageUrl = post.image_url || defaultImage;
+
     if (isPreview) {
+      const postUrl = post.tags === 'Jerome' 
+        ? `/tips/${post.slug}`
+        : `/blog/posts/${post.slug}`;
+
       return (
-        <Link href={post.tags?.includes('jerome') ? `/tips/${post.slug}` : `/blog/posts/${post.slug}`} className="block">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-200 mb-2">{post.title}</h2>
-            {formattedDate && (
-              <p className="text-gray-400 text-sm mb-4">{formattedDate}</p>
-            )}
-            <p className="text-gray-300">{post.excerpt || post.description}</p>
+        <Link href={postUrl} className="block">
+          <div className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <div className="relative h-48">
+              <Image
+                src={imageError ? defaultImage : imageUrl}
+                alt={post.title}
+                fill
+                className="object-cover"
+                onError={() => setImageError(true)}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            </div>
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-white mb-2">
+                {post.title}
+              </h2>
+              {formattedDate && (
+                <p className="text-gray-400 text-sm mb-2">{formattedDate}</p>
+              )}
+              <p className="text-gray-400 line-clamp-3">
+                {post.excerpt || post.description || 'Read more about this luxury home remodeling tip.'}
+              </p>
+            </div>
           </div>
         </Link>
       );
     }
 
-    const cleanedContent = cleanupContent(post.content);
-    console.log('[BlogPost] Content processing:', {
-      originalLength: post.content?.length,
-      cleanedLength: cleanedContent?.length,
-      firstChars: cleanedContent?.substring(0, 100)
-    });
-
     return (
-      <div className="p-6 pt-12">
-        <h1 className="text-4xl font-bold text-gray-200 mb-4">{post.title}</h1>
+      <article className="prose prose-invert lg:prose-xl mx-auto">
+        <h1>{post.title}</h1>
         {formattedDate && (
-          <p className="text-gray-400 text-sm mb-8">{formattedDate}</p>
+          <p className="text-gray-400">{formattedDate}</p>
+        )}
+        {post.image_url && (
+          <div className="relative h-[400px] my-8">
+            <Image
+              src={imageError ? defaultImage : imageUrl}
+              alt={post.title}
+              fill
+              className="object-cover rounded-lg"
+              onError={() => setImageError(true)}
+              sizes="100vw"
+              priority
+            />
+          </div>
         )}
         <div 
-          className="prose prose-invert lg:prose-xl max-w-none"
-          dangerouslySetInnerHTML={renderMarkdown(cleanedContent)}
+          dangerouslySetInnerHTML={renderMarkdown(post.content || '')} 
+          className="mt-8"
         />
-        {!isPreview && <BlogPostCTA />}
+        <BlogPostCTA />
+      </article>
+    );
+  } catch (error) {
+    console.error('[BlogPost] Error in render:', error);
+    setRenderError(error as Error);
+    return (
+      <div className="text-center text-white p-4">
+        <p>Error displaying post. Please try again later.</p>
       </div>
     );
-  };
-
-  return (
-    <div className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg">
-      <div className="relative w-full aspect-video">
-        <Image
-          src={post.image_url || '/images/default-blog.jpg'}
-          alt={post.title}
-          fill
-          className="object-cover"
-          priority={!isPreview}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = '/images/default-blog.jpg';
-          }}
-        />
-      </div>
-      {renderContent()}
-    </div>
-  );
+  }
 }
