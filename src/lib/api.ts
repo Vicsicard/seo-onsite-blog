@@ -156,8 +156,10 @@ function processPostContent(content: string): ProcessedContent {
 }
 
 function removeCTAText(content: string): string {
-  // Remove the old CTA text and any surrounding whitespace
-  return content.replace(/\[color=[^\]]*\]\[highlight=[^\]]*\]Looking for Home Remodelers in Denver[\s\S]*$/, '').trim();
+  // Remove only the raw text version of the CTA
+  return content
+    .replace(/Looking for Home Remodelers in Denver\?[\s\S]*?contractors across all trades\./g, '')
+    .trim();
 }
 
 export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: string; page?: number; limit?: number }) {
