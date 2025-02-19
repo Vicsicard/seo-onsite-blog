@@ -10,12 +10,19 @@ export const metadata: Metadata = {
   description: 'Explore luxury kitchen remodeling ideas and expert tips for creating your dream kitchen in Denver. Transform your space with modern designs and premium features.',
 };
 
-export default async function KitchenPage() {
+export default async function KitchenPage({
+  searchParams,
+}: {
+  searchParams: { page?: string };
+}) {
+  const currentPage = searchParams.page ? parseInt(searchParams.page) : 1;
+  console.log('[KitchenPage] Fetching page:', currentPage);
+
   try {
-    const { posts, error } = await fetchPostsByTag({ 
+    const { posts, error } = await fetchPostsByTag({
       tag: 'kitchen',
-      page: 1,
-      limit: 9
+      page: currentPage,
+      limit: 9,
     });
 
     if (error) {
@@ -59,6 +66,11 @@ export default async function KitchenPage() {
       };
     }).filter(Boolean) as BlogPostType[];
 
+    // Log the content of each post to verify cleanup
+    postsWithImages.forEach(post => {
+      console.log(`[KitchenPage] Post "${post.title}" content length:`, post.content.length);
+    });
+
     return (
       <main className="min-h-screen bg-black text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -79,8 +91,8 @@ export default async function KitchenPage() {
             <div suppressHydrationWarning>
               <BlogGrid
                 posts={postsWithImages}
-                currentPage={1}
-                totalPages={1}
+                currentPage={currentPage}
+                totalPages={Math.ceil((postsWithImages?.length || 0) / 9)}
               />
             </div>
           )}

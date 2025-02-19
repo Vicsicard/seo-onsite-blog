@@ -182,7 +182,6 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
   }
 
   console.log(`[API] Fetching posts with tag: ${tag}, page: ${page}, limit: ${limit}`);
-  
   const start = (page - 1) * limit;
   const end = start + limit - 1;
 
@@ -195,39 +194,37 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
       .range(start, end);
 
     if (error) {
-      console.error('[API] Supabase error:', error);
+      console.error('[API] Error fetching posts:', error);
       return { posts: [], error };
     }
 
-    if (!posts || !Array.isArray(posts)) {
-      console.log('[API] No posts found or invalid response');
+    if (!posts || posts.length === 0) {
+      console.log('[API] No posts found');
       return { posts: [], error: null };
     }
 
-    // Process each post to extract images
+    // Transform posts to extract image URLs and clean content
     const processedPosts = posts.map(post => {
-      if (!post || !post.content) {
-        console.log(`[API] Invalid post or missing content:`, post?.title || 'Unknown post');
-        return {
-          ...post,
-          content: '',
-          image_url: DEFAULT_IMAGES[tag as keyof typeof DEFAULT_IMAGES] || DEFAULT_IMAGES.general
-        };
-      }
+      const { imageUrl, cleanContent } = post.content 
+        ? extractImageFromContent(post.content)
+        : { imageUrl: null, cleanContent: '' };
 
-      const { imageUrl, cleanContent } = extractImageFromContent(post.content);
-      const defaultImage = DEFAULT_IMAGES[tag as keyof typeof DEFAULT_IMAGES] || DEFAULT_IMAGES.general;
-      
+      // Clean the CTA text from content
+      const contentWithoutCTA = removeCTAText(cleanContent);
+
+      const defaultImage = DEFAULT_IMAGES[tag.toLowerCase()] || DEFAULT_IMAGES.home;
       const finalImageUrl = imageUrl && isValidImageUrl(imageUrl) ? imageUrl : defaultImage;
       
       console.log(`[API] Processed post "${post.title}":`, {
         hasImage: !!imageUrl,
-        imageUrl: finalImageUrl
+        imageUrl: finalImageUrl,
+        originalLength: cleanContent.length,
+        cleanedLength: contentWithoutCTA.length
       });
 
       return {
         ...post,
-        content: cleanContent,
+        content: contentWithoutCTA,
         image_url: finalImageUrl
       };
     });
