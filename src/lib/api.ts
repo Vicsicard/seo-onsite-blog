@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { BlogPost } from '@/types/blog';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('[Supabase] Missing environment variables:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey
+  });
+}
 
 console.log('[Supabase] Testing connection...');
 console.log('[Supabase] URL:', supabaseUrl ? 'Set' : 'Not set');
@@ -15,8 +22,15 @@ const supabase = createClient(supabaseUrl, supabaseKey);
   try {
     console.log('[Supabase] Testing database connection...');
     const { data, error } = await supabase.from('blog_posts').select('count');
-    if (error) throw error;
-    console.log('[Supabase] Connection successful');
+    if (error) {
+      console.error('[Supabase] Connection error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      });
+      throw error;
+    }
+    console.log('[Supabase] Connection successful, post count:', data?.[0]?.count);
   } catch (err) {
     console.error('[Supabase] Connection error:', err);
   }
@@ -186,10 +200,11 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
   const end = start + limit - 1;
 
   try {
+    // First try exact JSON array match
     const { data: posts, error } = await supabase
       .from('blog_posts')
       .select('*')
-      .ilike('tags', `%${tag}%`)
+      .or(`tags.cs.{${tag}},tags.ilike.%"${tag}"%,tags.ilike.%${tag}%`)
       .order('created_at', { ascending: false })
       .range(start, end);
 
@@ -203,13 +218,26 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
       return { posts: [], error: null };
     }
 
+    console.log(`[API] Found ${posts.length} posts with tag "${tag}"`);
+    posts.forEach(post => {
+      console.log(`[API] Post "${post.title}":`, {
+        tags: post.tags,
+        contentLength: post.content?.length
+      });
+    });
+
     // Transform posts to extract image URLs and clean content
     const processedPosts = posts.map(post => {
-      const { imageUrl, cleanContent } = post.content 
-        ? extractImageFromContent(post.content)
-        : { imageUrl: null, cleanContent: '' };
+      if (!post.content) {
+        console.log(`[API] Post "${post.title}" has no content`);
+        return {
+          ...post,
+          content: '',
+          image_url: DEFAULT_IMAGES[tag.toLowerCase()] || DEFAULT_IMAGES.home
+        };
+      }
 
-      // Clean the CTA text from content
+      const { imageUrl, cleanContent } = extractImageFromContent(post.content);
       const contentWithoutCTA = removeCTAText(cleanContent);
 
       const defaultImage = DEFAULT_IMAGES[tag.toLowerCase()] || DEFAULT_IMAGES.home;
@@ -218,7 +246,7 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
       console.log(`[API] Processed post "${post.title}":`, {
         hasImage: !!imageUrl,
         imageUrl: finalImageUrl,
-        originalLength: cleanContent.length,
+        originalLength: post.content.length,
         cleanedLength: contentWithoutCTA.length
       });
 
@@ -231,59 +259,138 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
 
     return { posts: processedPosts, error: null };
   } catch (err) {
-    console.error('[API] Unexpected error:', err);
+    console.error('[API] Error processing posts:', err);
     return { posts: [], error: err as Error };
   }
 }
 
 export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
-  console.log(`[API] Fetching ${isTip ? 'tip' : 'post'} with slug: ${slug}`);
+  console.log(`[API] START fetchPostBySlug - slug: ${slug}, isTip: ${isTip}`);
 
   try {
-    const query = supabase
+    // Build the query
+    let query = supabase
       .from('blog_posts')
       .select('*')
       .eq('slug', slug);
 
-    // If it's a tip, filter for posts with the 'jerome' tag
+    // If it's a tip, add the jerome tag filter
     if (isTip) {
-      query.ilike('tags', '%jerome%');
+      query = query.or('tags.cs.{jerome},tags.ilike.%"jerome"%,tags.ilike.%jerome%');
     }
+
+    console.log('[API] Executing query:', {
+      slug,
+      isTip,
+      hasJeromeTag: isTip
+    });
 
     const { data: post, error } = await query.single();
 
+    // Log the raw response
+    console.log('[API] Raw database response:', {
+      post: post ? {
+        id: post.id,
+        slug: post.slug,
+        title: post.title,
+        tags: post.tags,
+        contentLength: post.content?.length,
+        hasContent: !!post.content
+      } : null,
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      } : null
+    });
+
     if (error) {
-      console.error('[API] Error fetching post:', error);
+      console.error('[API] Database error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      });
       return { post: null, error };
     }
 
     if (!post) {
-      console.log(`[API] No ${isTip ? 'tip' : 'post'} found with slug: ${slug}`);
-      return { post: null, error: new Error(`${isTip ? 'Tip' : 'Post'} not found`) };
+      console.log(`[API] No post found - slug: ${slug}, isTip: ${isTip}`);
+      return { post: null, error: new Error('Post not found') };
     }
 
-    // Extract image from content and remove CTA text
-    const { imageUrl, cleanContent } = post.content 
-      ? extractImageFromContent(post.content)
-      : { imageUrl: null, cleanContent: '' };
+    // Verify the post has the correct tag if it's a tip
+    if (isTip && !post.tags?.toLowerCase().includes('jerome')) {
+      console.log(`[API] Post found but doesn't have jerome tag:`, {
+        slug,
+        tags: post.tags
+      });
+      return { post: null, error: new Error('Post not found') };
+    }
+
+    // Log post details before processing
+    console.log('[API] Post found, pre-processing:', {
+      id: post.id,
+      slug: post.slug,
+      title: post.title,
+      tags: post.tags,
+      contentLength: post.content?.length,
+      hasContent: !!post.content
+    });
+
+    if (!post.content) {
+      console.log('[API] Post has no content:', {
+        id: post.id,
+        slug: post.slug,
+        title: post.title
+      });
+      return {
+        post: {
+          ...post,
+          content: '',
+          image_url: isTip 
+            ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
+            : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
+                           post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
+                           'home']
+        } as BlogPost,
+        error: null
+      };
+    }
+
+    // Extract image and clean content
+    const { imageUrl, cleanContent } = extractImageFromContent(post.content);
+
+    console.log('[API] Content processing results:', {
+      hasImageUrl: !!imageUrl,
+      cleanContentLength: cleanContent?.length,
+      firstChars: cleanContent?.substring(0, 100)
+    });
 
     const contentWithoutCTA = removeCTAText(cleanContent);
 
-    // Determine tag for default image
-    const tag = isTip ? 'jerome' :
-                post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                'home';
+    console.log('[API] Final content length:', contentWithoutCTA?.length);
 
-    const defaultImage = isTip 
-      ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
-      : DEFAULT_IMAGES[tag];
-
+    // Create transformed post
     const transformedPost = {
       ...post,
-      content: contentWithoutCTA,
-      image_url: imageUrl || defaultImage
+      content: contentWithoutCTA || '',
+      image_url: imageUrl || (isTip 
+        ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
+        : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
+                       post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
+                       'home'])
     } as BlogPost;
+
+    // Log the final transformed post
+    console.log('[API] Transformed post:', {
+      id: transformedPost.id,
+      slug: transformedPost.slug,
+      title: transformedPost.title,
+      tags: transformedPost.tags,
+      contentLength: transformedPost.content?.length,
+      hasContent: !!transformedPost.content,
+      hasImageUrl: !!transformedPost.image_url
+    });
 
     return { post: transformedPost, error: null };
   } catch (err) {

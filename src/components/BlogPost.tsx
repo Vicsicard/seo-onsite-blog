@@ -13,8 +13,12 @@ interface BlogPostProps {
 }
 
 const renderMarkdown = (content: string) => {
+  console.log('[BlogPost] Starting markdown rendering, content length:', content?.length);
+  
   try {
-    return { __html: marked(content || '') };
+    const html = marked(content || '');
+    console.log('[BlogPost] Markdown rendered successfully, HTML length:', html?.length);
+    return { __html: html };
   } catch (error) {
     console.error('[BlogPost] Error rendering markdown:', error);
     return { __html: content || '' };
@@ -22,6 +26,14 @@ const renderMarkdown = (content: string) => {
 };
 
 export default function BlogPostComponent({ post, isPreview = false }: BlogPostProps) {
+  console.log('[BlogPost] Rendering post:', {
+    title: post?.title,
+    slug: post?.slug,
+    isPreview,
+    hasContent: !!post?.content,
+    contentLength: post?.content?.length
+  });
+
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -29,9 +41,12 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    console.log('[BlogPost] Component not yet mounted');
+    return null;
+  }
 
-  const formattedDate = post.created_at 
+  const formattedDate = post?.created_at 
     ? new Date(post.created_at).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -41,12 +56,28 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
 
   // Additional cleanup for any remaining CTA text
   const cleanupContent = (content: string) => {
-    if (!content) return '';
-    return content.replace(/Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g, '').trim();
+    console.log('[BlogPost] Cleaning content, initial length:', content?.length);
+    
+    if (!content) {
+      console.log('[BlogPost] No content to clean');
+      return '';
+    }
+    
+    // Remove CTA text
+    let cleanContent = content.replace(/Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g, '').trim();
+    
+    // Remove any HTML comments
+    cleanContent = cleanContent.replace(/<!--[\s\S]*?-->/g, '');
+    
+    // Remove excessive newlines
+    cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n');
+    
+    console.log('[BlogPost] Content cleaned, final length:', cleanContent?.length);
+    return cleanContent;
   };
 
   if (!post) {
-    console.error('[BlogPost] Rendering error state - no post data');
+    console.error('[BlogPost] No post data provided');
     return (
       <div className="bg-red-500/10 backdrop-blur-sm rounded-lg p-6">
         <p className="text-red-400">Error loading post data</p>
@@ -54,10 +85,21 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     );
   }
 
+  if (!post.content) {
+    console.error('[BlogPost] Post has no content:', post.slug);
+    return (
+      <div className="bg-yellow-500/10 backdrop-blur-sm rounded-lg p-6">
+        <p className="text-yellow-400">This post has no content</p>
+      </div>
+    );
+  }
+
   const renderContent = () => {
+    console.log('[BlogPost] Starting content render');
+    
     if (isPreview) {
       return (
-        <Link href={`/blog/posts/${post.slug}`} className="block">
+        <Link href={post.tags?.includes('jerome') ? `/tips/${post.slug}` : `/blog/posts/${post.slug}`} className="block">
           <div className="p-6">
             <h2 className="text-2xl font-bold text-gray-200 mb-2">{post.title}</h2>
             {formattedDate && (
@@ -70,8 +112,11 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     }
 
     const cleanedContent = cleanupContent(post.content);
-    console.log('[BlogPost] Content length before cleanup:', post.content.length);
-    console.log('[BlogPost] Content length after cleanup:', cleanedContent.length);
+    console.log('[BlogPost] Content processing:', {
+      originalLength: post.content?.length,
+      cleanedLength: cleanedContent?.length,
+      firstChars: cleanedContent?.substring(0, 100)
+    });
 
     return (
       <div className="p-6 pt-12">
