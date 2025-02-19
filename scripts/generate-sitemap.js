@@ -7,11 +7,23 @@ const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing required environment variables. Please check your .env.local file.');
+  console.error('Missing required environment variables. Please check your .env file.');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+function cleanUrl(url) {
+  // Remove any characters that shouldn't be in URLs
+  return url
+    .replace(/[']/g, '') // Remove single quotes
+    .replace(/[&]/g, 'and') // Replace & with 'and'
+    .replace(/[?]/g, '') // Remove question marks
+    .replace(/[–]/g, '-') // Replace en-dash with hyphen
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .toLowerCase(); // Convert to lowercase
+}
 
 async function fetchAllPosts() {
   const { data: posts, error } = await supabase
@@ -52,11 +64,7 @@ async function generateSitemap() {
     const baseUrl = 'https://luxuryhomeremodelingdenver.com';
 
     let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n';
-    sitemap += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"\n';
-    sitemap += '        xmlns:xhtml="http://www.w3.org/1999/xhtml"\n';
-    sitemap += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"\n';
-    sitemap += '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n';
+    sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Add static pages
     staticPages.forEach(({ url, priority, changefreq }) => {
@@ -70,9 +78,10 @@ async function generateSitemap() {
 
     // Add dynamic blog posts
     posts.forEach((post) => {
+      const cleanSlug = cleanUrl(post.slug);
       const postUrl = post.tags === 'Jerome'
-        ? `/tips/${post.slug}`
-        : `/blog/posts/${post.slug}`;
+        ? `/tips/${cleanSlug}`
+        : `/blog/posts/${cleanSlug}`;
 
       sitemap += `  <url>\n`;
       sitemap += `    <loc>${baseUrl}${postUrl}</loc>\n`;
