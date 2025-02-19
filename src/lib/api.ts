@@ -236,15 +236,21 @@ export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: strin
   }
 }
 
-export async function fetchPostBySlug(slug: string) {
-  console.log(`[API] Fetching post with slug: ${slug}`);
+export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
+  console.log(`[API] Fetching ${isTip ? 'tip' : 'post'} with slug: ${slug}`);
 
   try {
-    const { data: post, error } = await supabase
+    const query = supabase
       .from('blog_posts')
       .select('*')
-      .eq('slug', slug)
-      .single();
+      .eq('slug', slug);
+
+    // If it's a tip, filter for posts with the 'jerome' tag
+    if (isTip) {
+      query.ilike('tags', '%jerome%');
+    }
+
+    const { data: post, error } = await query.single();
 
     if (error) {
       console.error('[API] Error fetching post:', error);
@@ -252,8 +258,8 @@ export async function fetchPostBySlug(slug: string) {
     }
 
     if (!post) {
-      console.log(`[API] No post found with slug: ${slug}`);
-      return { post: null, error: new Error('Post not found') };
+      console.log(`[API] No ${isTip ? 'tip' : 'post'} found with slug: ${slug}`);
+      return { post: null, error: new Error(`${isTip ? 'Tip' : 'Post'} not found`) };
     }
 
     // Extract image from content and remove CTA text
@@ -264,14 +270,19 @@ export async function fetchPostBySlug(slug: string) {
     const contentWithoutCTA = removeCTAText(cleanContent);
 
     // Determine tag for default image
-    const tag = post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
+    const tag = isTip ? 'jerome' :
+                post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
                 post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
                 'home';
+
+    const defaultImage = isTip 
+      ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
+      : DEFAULT_IMAGES[tag];
 
     const transformedPost = {
       ...post,
       content: contentWithoutCTA,
-      image_url: imageUrl || DEFAULT_IMAGES[tag]
+      image_url: imageUrl || defaultImage
     } as BlogPost;
 
     return { post: transformedPost, error: null };

@@ -8,11 +8,11 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { post, error } = await fetchPostBySlug(params.slug);
+  const { post, error } = await fetchPostBySlug(params.slug, true);
 
   if (error || !post) {
     return {
-      title: 'Post Not Found | Jerome\'s Tips',
+      title: 'Tip Not Found | Jerome\'s Tips',
       description: 'The requested tip could not be found.',
     };
   }
@@ -40,10 +40,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TipPost({ params }: Props) {
-  const { post, error } = await fetchPostBySlug(params.slug);
+  console.log('[TipPost] Fetching tip with slug:', params.slug);
+  const { post, error } = await fetchPostBySlug(params.slug, true);
 
-  if (error || !post) {
-    throw new Error('Failed to load tip post');
+  if (error) {
+    console.error('[TipPost] Error loading tip:', error);
+    throw new Error('Failed to load tip');
+  }
+
+  if (!post) {
+    console.error('[TipPost] No tip found with slug:', params.slug);
+    throw new Error('Tip not found');
   }
 
   return (
