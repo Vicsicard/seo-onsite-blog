@@ -27,6 +27,22 @@ const staticPages = [
   '/privacy'
 ];
 
+function cleanUrl(url) {
+  // Remove leading hyphens
+  url = url.replace(/^-+/, '');
+  
+  // Replace special characters with hyphens
+  url = url.replace(/[^a-zA-Z0-9-]/g, '-');
+  
+  // Replace multiple consecutive hyphens with a single hyphen
+  url = url.replace(/-+/g, '-');
+  
+  // Remove trailing hyphens
+  url = url.replace(/-+$/, '');
+  
+  return url;
+}
+
 async function generateSitemap() {
   try {
     // Fetch all blog posts
@@ -57,8 +73,10 @@ async function generateSitemap() {
     // Add dynamic blog post pages
     if (posts) {
       posts.forEach(post => {
+        if (!post.slug) return;
+        const cleanSlug = cleanUrl(post.slug);
         sitemap += `  <url>
-    <loc>${baseUrl}/blog/posts/${post.slug}</loc>
+    <loc>${baseUrl}/blog/posts/${encodeURIComponent(cleanSlug)}</loc>
     <lastmod>${new Date(post.created_at).toISOString()}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
