@@ -156,10 +156,23 @@ function processPostContent(content: string): ProcessedContent {
 }
 
 function removeCTAText(content: string): string {
-  // Remove only the raw text version of the CTA
-  return content
-    .replace(/Looking for Home Remodelers in Denver\?[\s\S]*?contractors across all trades\./g, '')
-    .trim();
+  console.log('[API] Original content length:', content.length);
+  
+  // Pattern to match the raw text CTA section, accounting for possible variations
+  const pattern = /(?:Call to Action.*?\n)?Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g;
+  
+  const cleanContent = content.replace(pattern, '').trim();
+  
+  console.log('[API] Content after CTA removal length:', cleanContent.length);
+  console.log('[API] Characters removed:', content.length - cleanContent.length);
+
+  if (content.length !== cleanContent.length) {
+    console.log('[API] CTA text was found and removed');
+  } else {
+    console.log('[API] No CTA text was found to remove');
+  }
+
+  return cleanContent;
 }
 
 export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: string; page?: number; limit?: number }) {

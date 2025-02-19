@@ -23,14 +23,13 @@ const renderMarkdown = (content: string) => {
 
 export default function BlogPostComponent({ post, isPreview = false }: BlogPostProps) {
   const [imageError, setImageError] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!post) {
-      console.error('[BlogPost] No post data provided');
-      return;
-    }
-    console.log(`[BlogPost] Rendering post: ${post.title}`);
-  }, [post]);
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   const formattedDate = post.created_at 
     ? new Date(post.created_at).toLocaleDateString('en-US', {
@@ -39,6 +38,12 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
         day: 'numeric'
       })
     : null;
+
+  // Additional cleanup for any remaining CTA text
+  const cleanupContent = (content: string) => {
+    if (!content) return '';
+    return content.replace(/Looking for Home Remodelers in Denver\?[\s\S]*?(?:contractors across all trades\.|info@topcontractorsdenver\.com)/g, '').trim();
+  };
 
   if (!post) {
     console.error('[BlogPost] Rendering error state - no post data');
@@ -64,6 +69,10 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
       );
     }
 
+    const cleanedContent = cleanupContent(post.content);
+    console.log('[BlogPost] Content length before cleanup:', post.content.length);
+    console.log('[BlogPost] Content length after cleanup:', cleanedContent.length);
+
     return (
       <div className="p-6 pt-12">
         <h1 className="text-4xl font-bold text-gray-200 mb-4">{post.title}</h1>
@@ -72,7 +81,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
         )}
         <div 
           className="prose prose-invert lg:prose-xl max-w-none"
-          dangerouslySetInnerHTML={renderMarkdown(post.content)}
+          dangerouslySetInnerHTML={renderMarkdown(cleanedContent)}
         />
         {!isPreview && <BlogPostCTA />}
       </div>
