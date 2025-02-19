@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     siteName: 'Denver Luxury Home Remodeling',
     images: [
       {
-        url: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg',
+        url: '/images/onsite-blog-luxury-home-image-444444.jpg',
         width: 1200,
         height: 630,
         alt: "Jerome Garcia's Luxury Remodeling Tips",

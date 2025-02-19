@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -16,72 +16,33 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
-export const viewport: Viewport = {
-  themeColor: '#ffffff',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5,
-};
-
 export const metadata: Metadata = {
   title: {
-    default: "Luxury Home Remodeling Blog | OnsiteProposal",
-    template: "%s | OnsiteProposal",
+    template: '%s | Denver Luxury Home Remodeling',
+    default: 'Denver Luxury Home Remodeling - Expert Tips & Inspiration'
   },
   description: "Explore high-end remodeling trends in Denver and get inspired with expert blog posts.",
-  applicationName: 'OnsiteProposal Blog',
-  authors: [{ name: 'OnsiteProposal Team' }],
-  generator: 'Next.js',
-  keywords: ['luxury home remodeling', 'Denver remodeling', 'home renovation', 'interior design', 'construction'],
-  referrer: 'origin-when-cross-origin',
-  creator: 'OnsiteProposal',
-  publisher: 'OnsiteProposal',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
   openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    url: 'https://onsiteproposal.com',
-    siteName: 'OnsiteProposal',
-    title: {
-      default: "Luxury Home Remodeling Blog",
-      template: "%s | OnsiteProposal",
-    },
+    title: "Luxury Home Remodeling Blog | OnsiteProposal",
     description: "Explore high-end remodeling trends in Denver and get inspired with expert blog posts.",
+    url: "https://onsiteproposal.com",
+    siteName: "OnsiteProposal",
+    locale: "en_US",
+    type: "website",
     images: [{
-      url: '/og-image.jpg',
+      url: '/images/onsite-blog-luxury-home-image-444444.jpg',
       width: 1200,
       height: 630,
-      alt: 'OnsiteProposal Blog',
-    }],
+      alt: "OnsiteProposal Blog"
+    }]
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: {
-      default: "Luxury Home Remodeling Blog",
-      template: "%s | OnsiteProposal",
-    },
-    description: "Explore high-end remodeling trends in Denver and get inspired with expert blog posts.",
-    creator: '@OnsiteProposal',
-    images: ['/og-image.jpg'],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
-  },
-  alternates: {
-    canonical: 'https://onsiteproposal.com',
-  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico'
+  }
 };
 
 export default function RootLayout({
@@ -91,13 +52,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-50 min-h-screen`}
-      >
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-900 text-white min-h-screen`}>
         <ErrorBoundary>
           {children}
+          <Footer />
         </ErrorBoundary>
-        <Footer />
       </body>
     </html>
   );

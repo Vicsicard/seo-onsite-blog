@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     siteName: 'Denver Luxury Home Remodeling',
     images: [
       {
-        url: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg',
+        url: '/images/onsite-blog-luxury-home-image-444444.jpg',
         width: 1200,
         height: 630,
         alt: 'Denver Luxury Home Remodeling Team',
@@ -31,7 +31,7 @@ export default function AboutPage() {
       {/* Hero Section */}
       <div className="relative h-[400px] w-full">
         <Image
-          src="https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg"
+          src="/images/onsite-blog-luxury-home-image-444444.jpg"
           alt="Denver Luxury Home Remodeling Team"
           fill
           className="object-cover"

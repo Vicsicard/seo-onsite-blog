@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { posts, error } = await fetchPosts('home', 0, 8);
+  const { posts, error } = await fetchPosts('homeremodeling', 0, 8);
 
   if (error) {
     console.error('Error fetching whole-home posts:', error);
@@ -28,7 +28,7 @@ export default async function HomePage() {
   // Ensure all posts have image URLs
   const postsWithImages = posts.map(post => ({
     ...post,
-    image_url: post.image_url || 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-default-image-333333.jpg'
+    image_url: post.image_url || 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg'
   }));
 
   return (
@@ -38,7 +38,7 @@ export default async function HomePage() {
       {/* Hero Section */}
       <div className="relative h-[400px] w-full">
         <Image
-          src="https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-home-default-image-333333.jpg"
+          src="https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg"
           alt="Luxury Home Remodeling"
           fill
           className="object-cover"

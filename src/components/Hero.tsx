@@ -5,7 +5,7 @@ export default function Hero() {
   return (
     <div className="relative h-[600px] w-full">
       <Image
-        src="https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-luxury-home-image-444444.jpg"
+        src="/images/onsite-blog-luxury-home-image-444444.jpg"
         alt="Luxury Home Remodeling in Denver"
         fill
         className="object-cover"

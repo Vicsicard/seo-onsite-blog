@@ -23,14 +23,20 @@ async function fetchAllPosts() {
 
 function getStaticPages() {
   return [
-    { url: '/', priority: '1.0' },
-    { url: '/about', priority: '0.8' },
-    { url: '/privacy', priority: '0.5' },
-    { url: '/tips', priority: '0.9' },
-    { url: '/blog/kitchen', priority: '0.9' },
-    { url: '/blog/bathroom', priority: '0.9' },
-    { url: '/blog/home', priority: '0.9' },
+    { url: '/', priority: '1.0', changefreq: 'daily' },
+    { url: '/blog', priority: '0.9', changefreq: 'daily' },
+    { url: '/blog/kitchen', priority: '0.9', changefreq: 'daily' },
+    { url: '/blog/bathroom', priority: '0.9', changefreq: 'daily' },
+    { url: '/blog/home', priority: '0.9', changefreq: 'daily' },
+    { url: '/tips', priority: '0.9', changefreq: 'daily' },
+    { url: '/about', priority: '0.8', changefreq: 'monthly' },
+    { url: '/privacy', priority: '0.5', changefreq: 'yearly' },
   ];
+}
+
+function formatDate(date: string | Date): string {
+  const d = new Date(date);
+  return d.toISOString().split('T')[0];
 }
 
 export async function generateSitemap() {
@@ -40,29 +46,37 @@ export async function generateSitemap() {
     const baseUrl = 'https://luxuryhomeremodelingdenver.com';
 
     let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+    sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n';
+    sitemap += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"\n';
+    sitemap += '        xmlns:xhtml="http://www.w3.org/1999/xhtml"\n';
+    sitemap += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"\n';
+    sitemap += '        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">\n';
 
     // Add static pages
-    staticPages.forEach(({ url, priority }) => {
+    staticPages.forEach(({ url, priority, changefreq }) => {
       sitemap += `  <url>\n`;
       sitemap += `    <loc>${baseUrl}${url}</loc>\n`;
-      sitemap += `    <lastmod>${new Date().toISOString()}</lastmod>\n`;
-      sitemap += `    <changefreq>weekly</changefreq>\n`;
+      sitemap += `    <lastmod>${formatDate(new Date())}</lastmod>\n`;
+      sitemap += `    <changefreq>${changefreq}</changefreq>\n`;
       sitemap += `    <priority>${priority}</priority>\n`;
       sitemap += `  </url>\n`;
     });
 
     // Add dynamic blog posts
     posts.forEach((post) => {
-      const postUrl = post.tags?.includes('jerome') 
+      const postUrl = post.tags === 'Jerome'
         ? `/tips/${post.slug}`
         : `/blog/posts/${post.slug}`;
 
+      const lastmod = post.updated_at || post.created_at || new Date();
+      const priority = post.tags === 'Jerome' ? '0.8' : '0.7';
+      const changefreq = post.tags === 'Jerome' ? 'weekly' : 'monthly';
+
       sitemap += `  <url>\n`;
       sitemap += `    <loc>${baseUrl}${postUrl}</loc>\n`;
-      sitemap += `    <lastmod>${(post.updated_at || post.created_at || new Date()).slice(0, 10)}</lastmod>\n`;
-      sitemap += `    <changefreq>monthly</changefreq>\n`;
-      sitemap += `    <priority>0.7</priority>\n`;
+      sitemap += `    <lastmod>${formatDate(lastmod)}</lastmod>\n`;
+      sitemap += `    <changefreq>${changefreq}</changefreq>\n`;
+      sitemap += `    <priority>${priority}</priority>\n`;
       sitemap += `  </url>\n`;
     });
 
@@ -71,7 +85,18 @@ export async function generateSitemap() {
     // Write sitemap to public directory
     const publicDir = path.join(process.cwd(), 'public');
     fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), sitemap);
-    console.log('Sitemap generated successfully!');
+    
+    // Generate robots.txt
+    const robotsTxt = `# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: ${baseUrl}/sitemap.xml`;
+
+    fs.writeFileSync(path.join(publicDir, 'robots.txt'), robotsTxt);
+    
+    console.log('Sitemap and robots.txt generated successfully!');
 
     return sitemap;
   } catch (error) {

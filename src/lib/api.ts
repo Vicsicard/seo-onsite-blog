@@ -38,12 +38,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
   }
 })();
 
-// Map of default images for each tag
+// Define default images with correct URLs
 const DEFAULT_IMAGES = {
-  kitchen: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-kitchen-image-333333333.jpg',
-  bathroom: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-bathroom-image-333333.jpg',
-  general: 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-default-image-333333.jpg'
-};
+  kitchen: '/images/onsite-blog-kitchen-image-333333333.jpg',
+  bathroom: '/images/onsite-blog-bathroom-image-333333333.jpg',
+  general: '/images/onsite-blog-luxury-home-image-444444.jpg'
+} as const;
 
 interface ProcessedContent {
   imageUrl: string | null;
@@ -60,61 +60,142 @@ function isValidImageUrl(url: string): boolean {
   }
 }
 
-function extractImageFromContent(content: string): { imageUrl: string | null, cleanContent: string } {
-  if (!content || typeof content !== 'string') {
-    console.log('[Content] Invalid content:', content);
-    return {
-      imageUrl: null,
-      cleanContent: content || ''
-    };
-  }
+// Function to ensure URL is absolute without double-prefixing
+export function ensureAbsoluteUrl(url: string | null): string | null {
+  if (!url) return null;
 
   try {
-    // First try to find Markdown image syntax
-    const mdImageMatch = content.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+    // Remove any double https:// that might have been added
+    const cleanUrl = url.replace(/^https?:\/\/https?:\/\//, 'https://');
     
-    if (mdImageMatch) {
-      const [fullMatch, alt, imageUrl] = mdImageMatch;
-      console.log('[Content] Found Markdown image:', {
-        alt,
-        imageUrl
-      });
-      
-      if (isValidImageUrl(imageUrl)) {
-        return {
-          imageUrl,
-          cleanContent: content.replace(fullMatch, '').trim()
-        };
-      }
+    // If it's already absolute, return the cleaned URL
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return cleanUrl;
     }
-
-    // Fallback to HTML image tag if no Markdown image found
-    const htmlImageMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
     
-    if (htmlImageMatch) {
-      const imageUrl = htmlImageMatch[1];
-      console.log('[Content] Found HTML image:', imageUrl);
-      
-      if (isValidImageUrl(imageUrl)) {
-        return {
-          imageUrl,
-          cleanContent: content.replace(htmlImageMatch[0], '').trim()
-        };
-      }
-    }
-
-    console.log('[Content] No valid image found in content');
-    return {
-      imageUrl: null,
-      cleanContent: content
-    };
-  } catch (err) {
-    console.error('[Content] Failed to extract image:', err);
-    return {
-      imageUrl: null,
-      cleanContent: content
-    };
+    // Remove any protocol-relative format
+    const withoutProtocol = cleanUrl.replace(/^\/\//, '');
+    
+    // Add https:// prefix
+    return `https://${withoutProtocol}`;
+  } catch (error) {
+    console.error('[API] Invalid URL:', url, error);
+    return null;
   }
+}
+
+// Function to extract image URL from content
+export function extractImageFromContent(content: string): { imageUrl: string | null; cleanContent: string } {
+  try {
+    // Default return value
+    const defaultResult = { imageUrl: null, cleanContent: content };
+
+    if (!content) {
+      console.log('[API] No content to extract image from');
+      return defaultResult;
+    }
+
+    // Try to find an image URL in the content
+    const imgMatch = content.match(/!\[.*?\]\((.*?)\)/);
+    if (!imgMatch) {
+      console.log('[API] No image found in content');
+      return defaultResult;
+    }
+
+    const imageUrl = ensureAbsoluteUrl(imgMatch[1]);
+    const cleanContent = content.replace(imgMatch[0], '').trim();
+
+    console.log('[API] Extracted image URL:', { original: imgMatch[1], fixed: imageUrl });
+    return { imageUrl, cleanContent };
+  } catch (error) {
+    console.error('[API] Error extracting image from content:', error);
+    return { imageUrl: null, cleanContent: content };
+  }
+}
+
+function removeCTAText(content: string): string {
+  if (!content) return '';
+
+  // Define patterns for CTA sections and raw text
+  const patterns = [
+    // CTA patterns
+    /Call to Action[\s\S]*?(?=\n\n|$)/gi,
+    /Ready to transform[\s\S]*?(?=\n\n|$)/gi,
+    /Contact us today[\s\S]*?(?=\n\n|$)/gi,
+    /Get in touch[\s\S]*?(?=\n\n|$)/gi,
+    /Schedule your consultation[\s\S]*?(?=\n\n|$)/gi,
+    /Let's discuss[\s\S]*?(?=\n\n|$)/gi,
+    /Call \(\d{3}\) \d{3}-\d{4}[\s\S]*?(?=\n\n|$)/gi,
+    /Visit our showroom[\s\S]*?(?=\n\n|$)/gi,
+    /Book your appointment[\s\S]*?(?=\n\n|$)/gi,
+    /Start your project[\s\S]*?(?=\n\n|$)/gi,
+    /Transform your[\s\S]*?(?=\n\n|$)/gi,
+    /Ready for your[\s\S]*?(?=\n\n|$)/gi,
+    /Take the first step[\s\S]*?(?=\n\n|$)/gi,
+    /Begin your journey[\s\S]*?(?=\n\n|$)/gi,
+    /Experience luxury[\s\S]*?(?=\n\n|$)/gi,
+    /Discover how[\s\S]*?(?=\n\n|$)/gi,
+    /Contact Jerome[\s\S]*?(?=\n\n|$)/gi,
+    
+    // Raw text patterns
+    /New Boiler Plate[\s\S]*?(?=\n\n|$)/gi,
+    /boiler plate[\s\S]*?(?=\n\n|$)/gi,
+    /BOILER PLATE[\s\S]*?(?=\n\n|$)/gi,
+    /raw text[\s\S]*?(?=\n\n|$)/gi,
+    /RAW TEXT[\s\S]*?(?=\n\n|$)/gi,
+    /Raw Text[\s\S]*?(?=\n\n|$)/gi,
+    /\[raw\][\s\S]*?\[\/raw\]/gi,
+    /\[boilerplate\][\s\S]*?\[\/boilerplate\]/gi,
+    /\[cta\][\s\S]*?\[\/cta\]/gi,
+    
+    // Remove any sections that look like raw content or notes
+    /(?:^|\n)Raw:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)Notes:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)TODO:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)EDIT:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)UPDATE:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)REMOVE:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)ADD:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)DRAFT:[\s\S]*?(?=\n\n|$)/gi,
+    /(?:^|\n)REVISION:[\s\S]*?(?=\n\n|$)/gi,
+    
+    // Remove specific HTML-like tags and their content
+    /\[color=[^\]]*\][\s\S]*?\[\/color\]/gi,
+    /\[highlight=[^\]]*\][\s\S]*?\[\/highlight\]/gi,
+    
+    // Remove specific sections about contractors
+    /Looking for Home Remodelers in Denver[\s\S]*?(?=\n\n|$)/gi,
+    /Top Contractors Denver[\s\S]*?(?=\n\n|$)/gi,
+    /info@topcontractorsdenver\.com/gi,
+    /Have questions or need help[\s\S]*?(?=\n\n|$)/gi,
+    /Discover why thousands[\s\S]*?(?=\n\n|$)/gi,
+    
+    // Remove any sections that start with common raw text markers
+    /(?:^|\n)(?:\[.*?\]|<.*?>|{.*?}|\*\*.*?\*\*|##.*?##)[\s\S]*?(?=\n\n|$)/gi
+  ];
+
+  // Remove each pattern
+  let cleanContent = content;
+  patterns.forEach(pattern => {
+    cleanContent = cleanContent.replace(pattern, '');
+  });
+
+  // Remove any trailing whitespace or newlines
+  cleanContent = cleanContent.trim();
+
+  // Remove any remaining HTML-like tags while preserving content
+  cleanContent = cleanContent.replace(/\[color=[^\]]*\]|\[\/color\]/gi, '');
+  cleanContent = cleanContent.replace(/\[highlight=[^\]]*\]|\[\/highlight\]/gi, '');
+  
+  // Remove any double newlines that might have been created
+  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n');
+
+  // Remove duplicate paragraphs (exact matches)
+  const paragraphs = cleanContent.split('\n\n');
+  const uniqueParagraphs = [...new Set(paragraphs)];
+  cleanContent = uniqueParagraphs.join('\n\n');
+
+  return cleanContent;
 }
 
 function processPostContent(content: string): ProcessedContent {
@@ -132,7 +213,7 @@ function processPostContent(content: string): ProcessedContent {
     
     if (imgMatch && imgMatch[1]) {
       // Store the found image URL
-      result.imageUrl = imgMatch[1];
+      result.imageUrl = ensureAbsoluteUrl(imgMatch[1]);
       
       // Remove the entire img tag and its container paragraph if it exists
       result.cleanContent = content
@@ -171,278 +252,316 @@ function processPostContent(content: string): ProcessedContent {
   }
 }
 
-function removeCTAText(content: string): string {
-  if (!content) return '';
-
-  // Define patterns for CTA sections
-  const ctaPatterns = [
-    /Call to Action[\s\S]*?(?=\n\n|$)/gi,
-    /Ready to transform[\s\S]*?(?=\n\n|$)/gi,
-    /Contact us today[\s\S]*?(?=\n\n|$)/gi,
-    /Get in touch[\s\S]*?(?=\n\n|$)/gi,
-    /Schedule your consultation[\s\S]*?(?=\n\n|$)/gi,
-    /Let's discuss[\s\S]*?(?=\n\n|$)/gi,
-    /Call \(\d{3}\) \d{3}-\d{4}[\s\S]*?(?=\n\n|$)/gi,
-    /Visit our showroom[\s\S]*?(?=\n\n|$)/gi,
-    /Book your appointment[\s\S]*?(?=\n\n|$)/gi,
-    /Start your project[\s\S]*?(?=\n\n|$)/gi,
-    /Transform your[\s\S]*?(?=\n\n|$)/gi,
-    /Ready for your[\s\S]*?(?=\n\n|$)/gi,
-    /Take the first step[\s\S]*?(?=\n\n|$)/gi,
-    /Begin your journey[\s\S]*?(?=\n\n|$)/gi,
-    /Experience luxury[\s\S]*?(?=\n\n|$)/gi,
-    /Discover how[\s\S]*?(?=\n\n|$)/gi,
-    /Contact Jerome[\s\S]*?(?=\n\n|$)/gi,
-    /New Boiler Plate[\s\S]*?(?=\n\n|$)/gi,
-    /boiler plate[\s\S]*?(?=\n\n|$)/gi,
-    /BOILER PLATE[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Call to Action\*\*[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Ready to transform[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Contact us today[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Get in touch[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Schedule your consultation[\s\S]*?(?=\n\n|$)/gi,
-    /\*\*Let's discuss[\s\S]*?(?=\n\n|$)/gi
-  ];
-
-  // Remove each CTA pattern
-  let cleanContent = content;
-  ctaPatterns.forEach(pattern => {
-    cleanContent = cleanContent.replace(pattern, '');
-  });
-
-  // Remove any trailing whitespace or newlines
-  cleanContent = cleanContent.trim();
-
-  // Remove any remaining boilerplate sections
-  cleanContent = cleanContent.replace(/(?:^|\n)(?:Call to Action|Ready to transform|Contact us today|Get in touch|Schedule your consultation|Let's discuss|Call \(\d{3}\) \d{3}-\d{4}|Visit our showroom|Book your appointment|Start your project|Transform your|Ready for your|Take the first step|Begin your journey|Experience luxury|Discover how|Contact Jerome|New Boiler Plate|boiler plate|BOILER PLATE)[\s\S]*?(?=\n\n|$)/gi, '');
-
-  // Remove any double newlines that might have been created
-  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n');
-
-  return cleanContent;
-}
-
-export async function fetchPostsByTag({ tag, page = 1, limit = 9 }: { tag: string; page?: number; limit?: number }) {
-  if (!tag) {
-    console.error('[API] Tag is required');
-    return { posts: [], error: new Error('Tag is required') };
-  }
-
-  // Ensure exact match for "Jerome" tag
-  const exactTag = tag.toLowerCase() === 'jerome' ? 'Jerome' : tag;
-  console.log(`[API] Fetching posts with tag: ${exactTag}, page: ${page}, limit: ${limit}`);
-  
-  const start = (page - 1) * limit;
-  const end = start + limit - 1;
+export async function fetchAllPosts({ 
+  tags = [], 
+  orderBy = { column: 'published_at', order: 'desc' } 
+}: {
+  tags?: string[];
+  orderBy?: { column: string; order: 'asc' | 'desc' };
+} = {}) {
+  console.log('[fetchAllPosts] Starting with params:', { tags, orderBy });
 
   try {
-    // Use exact match for "Jerome" tag, case-sensitive
-    const { data: posts, error } = await supabase
+    let query = supabase
       .from('blog_posts')
-      .select('*')
-      .ilike('tags', `%${exactTag}%`)  // Use case-insensitive match
-      .order('created_at', { ascending: false })
-      .range(start, end);
+      .select('*');
 
-    if (error) {
-      console.error('[API] Error fetching posts:', error);
-      return { posts: [], error };
+    // Add tag filtering if specified
+    if (tags.length > 0) {
+      // For Jerome tag, use exact match
+      if (tags.includes('Jerome')) {
+        query = query.eq('tags', 'Jerome');
+      } else {
+        // For other tags, use ILIKE
+        const tagConditions = tags.map(tag => `tags ilike '%${tag}%'`);
+        query = query.or(tagConditions.join(','));
+      }
     }
 
-    if (!posts || posts.length === 0) {
-      console.log(`[API] No posts found for tag: ${exactTag}`);
+    // Add ordering
+    query = query.order(orderBy.column, { ascending: orderBy.order === 'asc' });
+
+    const { data: posts, error } = await query;
+
+    if (error) {
+      console.error('[fetchAllPosts] Database error:', error);
+      return { posts: null, error: 'Failed to fetch posts' };
+    }
+
+    if (!posts?.length) {
+      console.log('[fetchAllPosts] No posts found');
       return { posts: [], error: null };
     }
 
-    console.log(`[API] Found ${posts.length} posts with tag "${exactTag}"`);
-    posts.forEach(post => {
-      console.log(`[API] Post "${post.title}":`, {
-        tags: post.tags,
-        contentLength: post.content?.length
-      });
-    });
-
-    // Transform posts to extract image URLs and clean content
+    // Process posts to ensure image_url is set
     const processedPosts = posts.map(post => {
-      if (!post.content) {
-        console.log(`[API] Post "${post.title}" has no content`);
-        return {
-          ...post,
-          content: '',
-          image_url: DEFAULT_IMAGES[tag.toLowerCase()] || DEFAULT_IMAGES.home
-        };
+      let imageUrl = post.image_url;
+      
+      // If no image_url, try to extract from content
+      if (!imageUrl && post.content) {
+        const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
+        imageUrl = extractedUrl;
       }
 
-      const { imageUrl, cleanContent } = extractImageFromContent(post.content);
-      const contentWithoutCTA = removeCTAText(cleanContent);
-
-      const defaultImage = DEFAULT_IMAGES[tag.toLowerCase()] || DEFAULT_IMAGES.home;
-      const finalImageUrl = imageUrl && isValidImageUrl(imageUrl) ? imageUrl : defaultImage;
-      
-      console.log(`[API] Processed post "${post.title}":`, {
-        hasImage: !!imageUrl,
-        imageUrl: finalImageUrl,
-        originalLength: post.content.length,
-        cleanedLength: contentWithoutCTA.length
-      });
+      // If still no image, use default based on tags
+      if (!imageUrl) {
+        imageUrl = post.tags === 'Jerome'
+          ? '/images/onsite-blog-Jerome-image-333.jpg'
+          : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
+                        post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
+                        'general'];
+      }
 
       return {
         ...post,
-        content: contentWithoutCTA,
-        image_url: finalImageUrl
+        image_url: imageUrl
       };
     });
 
+    console.log('[fetchAllPosts] Success:', { 
+      count: processedPosts.length,
+      posts: processedPosts.map(p => ({ 
+        id: p.id, 
+        title: p.title,
+        slug: p.slug,
+        tags: p.tags,
+        hasImage: !!p.image_url 
+      }))
+    });
+
     return { posts: processedPosts, error: null };
-  } catch (err) {
-    console.error('[API] Error processing posts:', err);
-    return { posts: [], error: err as Error };
+  } catch (error) {
+    console.error('[fetchAllPosts] Error:', error);
+    return { posts: null, error: 'Failed to fetch posts' };
   }
 }
 
 export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
-  console.log(`[API] START fetchPostBySlug - slug: ${slug}, isTip: ${isTip}`);
+  console.log('[fetchPostBySlug] Starting with:', { 
+    slug,
+    isTip,
+    slugCharCodes: [...slug].map(c => ({ char: c, code: c.charCodeAt(0) }))
+  });
 
   try {
-    // Build the query
+    // First decode the URL-encoded string
+    const urlDecoded = decodeURIComponent(slug);
+    console.log('[fetchPostBySlug] After URL decode:', { 
+      urlDecoded,
+      decodedCharCodes: [...urlDecoded].map(c => ({ char: c, code: c.charCodeAt(0) }))
+    });
+
+    // First try an exact match with the decoded slug
     let query = supabase
       .from('blog_posts')
       .select('*')
-      .eq('slug', slug);
+      .ilike('slug', urlDecoded);  // Case-insensitive match for slug
 
-    // If it's a tip, add the jerome tag filter
+    // If this is a tip, only get posts with Jerome tag
     if (isTip) {
-      query = query.or('tags.cs.{jerome},tags.ilike.%"jerome"%,tags.ilike.%jerome%');
+      query = query.eq('tags', 'Jerome');  // Exact match for Jerome tag
     }
 
-    const { data: post, error } = await query.single();
+    let { data: posts, error: dbError } = await query;
 
-    if (error) {
-      console.error('[API] Database error:', {
-        message: error.message,
-        code: error.code,
-        details: error.details
+    console.log('[fetchPostBySlug] Query result:', {
+      success: !dbError,
+      hasPost: !!posts?.length,
+      error: dbError,
+      querySlug: urlDecoded,
+      posts: posts?.map(p => ({
+        slug: p.slug,
+        tags: p.tags
+      }))
+    });
+
+    if (dbError) {
+      console.error('[fetchPostBySlug] Database error:', dbError);
+      return { post: null, error: 'Post not found' };
+    }
+
+    if (!posts?.length) {
+      // Try with normalized characters
+      const normalizedSlug = urlDecoded
+        .replace(/[\u2014\u2013]/g, '-')  // Normalize all dash variants
+        .replace(/[\u2019\u2018]/g, "'")  // Normalize all apostrophe variants
+        .replace(/-+/g, '-')               // Replace multiple dashes with single dash
+        .replace(/^-+|-+$/g, '')          // Remove leading/trailing dashes
+        .toLowerCase();                    // Ensure lowercase
+
+      console.log('[fetchPostBySlug] Trying normalized slug:', {
+        normalizedSlug,
+        normalizedCharCodes: [...normalizedSlug].map(c => ({ char: c, code: c.charCodeAt(0) }))
       });
-      return { post: null, error };
+
+      const { data: normalizedPosts, error: normalizedError } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .ilike('slug', normalizedSlug)
+        .eq('tags', isTip ? 'Jerome' : normalizedSlug);  // Exact match for Jerome tag
+
+      if (normalizedError) {
+        console.error('[fetchPostBySlug] Error with normalized slug:', normalizedError);
+        return { post: null, error: 'Post not found' };
+      }
+
+      posts = normalizedPosts;
     }
 
-    if (!post) {
-      console.log(`[API] No post found - slug: ${slug}, isTip: ${isTip}`);
-      return { post: null, error: new Error('Post not found') };
+    if (!posts?.length) {
+      console.log('[fetchPostBySlug] No post found with either slug');
+      return { post: null, error: 'Post not found' };
     }
 
-    // For tips, verify it has the jerome tag
-    if (isTip && !post.tags?.toLowerCase().includes('jerome')) {
-      console.log(`[API] Post found but doesn't have jerome tag:`, {
-        slug,
-        tags: post.tags
-      });
-      return { post: null, error: new Error('Post not found') };
+    const post = posts[0];
+
+    // For tips, verify it has the Jerome tag
+    if (isTip && post.tags !== 'Jerome') {
+      console.log('[fetchPostBySlug] Post found but not a Jerome tip:', post.tags);
+      return { post: null, error: 'Post not found' };
     }
 
-    if (!post.content) {
-      console.log('[API] Post has no content:', {
-        id: post.id,
-        slug: post.slug,
-        title: post.title
-      });
-      return {
-        post: {
-          ...post,
-          content: '',
-          image_url: isTip 
-            ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
-            : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                           post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                           'home']
-        } as BlogPost,
-        error: null
-      };
+    // Process the post content
+    let imageUrl = post.image_url;
+    
+    // If no image_url, try to extract from content
+    if (!imageUrl && post.content) {
+      const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
+      imageUrl = extractedUrl;
     }
 
-    // Extract image and clean content
-    const { imageUrl, cleanContent } = extractImageFromContent(post.content);
-    const contentWithoutCTA = removeCTAText(cleanContent);
-
-    // Create transformed post
-    const transformedPost = {
-      ...post,
-      content: contentWithoutCTA || '',
-      image_url: imageUrl || (isTip 
-        ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
+    // If still no image, use default based on tags
+    if (!imageUrl) {
+      imageUrl = post.tags === 'Jerome'
+        ? '/images/onsite-blog-Jerome-image-333.jpg'
         : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                       post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                       'home'])
-    } as BlogPost;
+                      post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
+                      'general'];
+    }
 
-    return { post: transformedPost, error: null };
-  } catch (err) {
-    console.error('[API] Error in fetchPostBySlug:', err);
-    return { post: null, error: err as Error };
+    const processedPost = {
+      ...post,
+      image_url: imageUrl
+    };
+
+    console.log('[fetchPostBySlug] Successfully processed post:', {
+      title: processedPost.title,
+      slug: processedPost.slug,
+      hasContent: !!processedPost.content,
+      tags: processedPost.tags,
+      imageUrl: processedPost.image_url
+    });
+
+    return { post: processedPost, error: null };
+  } catch (error) {
+    console.error('[fetchPostBySlug] Unexpected error:', error);
+    return { post: null, error: 'Post not found' };
   }
 }
 
-export async function fetchAllPosts({ page = 1, limit = 9 }: { page?: number; limit?: number }) {
-  console.log(`[API] Fetching all posts, page: ${page}, limit: ${limit}`);
-  
-  const start = (page - 1) * limit;
-  const end = start + limit - 1;
+function escapeSqlValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
 
-  try {
-    const { data: posts, error } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(start, end);
+async function findPostBySlugOrTitle(decodedSlug: string, originalSlug: string, isTip: boolean) {
+  // Normalize slugs by:
+  // 1. Converting to lowercase
+  // 2. Converting special quotes and dashes to standard ones
+  // 3. Removing any double spaces
+  const normalizeText = (text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/[\u2018\u2019]/g, "'")  // Convert smart quotes to regular apostrophe
+      .replace(/[\u201C\u201D]/g, '"')  // Convert smart quotes to regular quotes
+      .replace(/[\u2013\u2014]/g, '-')  // Convert em/en dashes to regular dash
+      .replace(/\s+/g, ' ')             // Convert multiple spaces to single space
+      .trim();
+  };
 
-    if (error) {
-      console.error('[API] Error fetching posts:', error);
-      return { posts: [], error };
-    }
+  const normalizedDecodedSlug = normalizeText(decodedSlug);
+  const normalizedOriginalSlug = normalizeText(originalSlug);
 
-    if (!posts || posts.length === 0) {
-      console.log('[API] No posts found');
-      return { posts: [], error: null };
-    }
+  console.log('[API] Starting post search:', {
+    decodedSlug,
+    originalSlug,
+    normalizedDecodedSlug,
+    normalizedOriginalSlug,
+    isTip
+  });
 
-    // Log raw post data
-    console.log('[API] Raw posts data:', JSON.stringify(posts, null, 2));
+  // Base query with Jerome tag filter if it's a tip
+  const baseQuery = supabase
+    .from('blog_posts')
+    .select('*');
 
-    // Transform posts to extract image URLs and clean content
-    const transformedPosts = posts.map(post => {
-      console.log(`\n[API] Processing post "${post.title}" (ID: ${post.id}):`);
-      console.log('Raw content:', post.content);
-
-      const { imageUrl, cleanContent, description } = post.content 
-        ? processPostContent(post.content)
-        : { imageUrl: null, cleanContent: '', description: '' };
-
-      // Determine tag for default image
-      const tag = post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                 post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                 'home';
-
-      const finalPost = {
-        ...post,
-        content: cleanContent,
-        description: description,
-        image_url: imageUrl || DEFAULT_IMAGES[tag]
-      };
-
-      console.log('Transformed post:', {
-        title: finalPost.title,
-        image_url: finalPost.image_url,
-        content_length: finalPost.content.length
-      });
-
-      return finalPost;
-    }) as BlogPost[];
-
-    return { posts: transformedPosts, error: null };
-  } catch (err) {
-    console.error('[API] Unexpected error:', err);
-    return { posts: [], error: err as Error };
+  if (isTip) {
+    baseQuery.eq('tags', 'Jerome');  // Exact match since we know the tag is stored as 'Jerome'
   }
+
+  // Try exact matches first
+  const { data: exactMatches, error: exactError } = await baseQuery
+    .or(`slug.eq.'${escapeSqlValue(normalizedDecodedSlug)}',slug.eq.'${escapeSqlValue(decodedSlug)}',slug.eq.'${escapeSqlValue(originalSlug)}'`);
+
+  if (exactError) {
+    console.error('[API] Error in exact match query:', exactError);
+    return null;
+  }
+
+  if (exactMatches && exactMatches.length > 0) {
+    console.log('[API] Found exact match:', {
+      matchedSlug: exactMatches[0].slug,
+      originalTitle: exactMatches[0].title
+    });
+    return exactMatches[0];
+  }
+
+  // Try case-insensitive search
+  const { data: slugMatches, error: slugError } = await baseQuery
+    .or(`slug.ilike.'%${escapeSqlValue(normalizedDecodedSlug)}%',slug.ilike.'%${escapeSqlValue(decodedSlug)}%'`);
+
+  if (slugError) {
+    console.error('[API] Error in slug search:', slugError);
+    return null;
+  }
+
+  if (slugMatches && slugMatches.length > 0) {
+    console.log('[API] Found case-insensitive match:', {
+      matchedSlug: slugMatches[0].slug,
+      originalTitle: slugMatches[0].title
+    });
+    return slugMatches[0];
+  }
+
+  // Try title search as last resort
+  const searchTitle = decodedSlug.replace(/-/g, ' ').trim();
+  const normalizedSearchTitle = normalizeText(searchTitle);
+
+  const { data: titleMatches, error: titleError } = await baseQuery
+    .ilike('title', `%${escapeSqlValue(normalizedSearchTitle)}%`);
+
+  if (titleError) {
+    console.error('[API] Error in title search:', titleError);
+    return null;
+  }
+
+  if (titleMatches && titleMatches.length > 0) {
+    console.log('[API] Found match by title:', {
+      searchTitle: normalizedSearchTitle,
+      matchedTitle: titleMatches[0].title,
+      matchedSlug: titleMatches[0].slug
+    });
+    return titleMatches[0];
+  }
+
+  console.log('[API] No matches found for:', {
+    decodedSlug,
+    originalSlug,
+    normalizedDecodedSlug,
+    normalizedOriginalSlug,
+    searchTitle: normalizedSearchTitle,
+    isTip
+  });
+  return null;
 }
 
 export async function fetchPosts(exactTag: string, start: number = 0, end: number = 9) {
@@ -452,7 +571,7 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
     const { data: posts, error } = await supabase
       .from('blog_posts')
       .select('*')
-      .ilike('tags', `%${exactTag}%`)  // Use case-insensitive match
+      .eq('tags', exactTag)  // Use exact match for tags
       .order('created_at', { ascending: false })
       .range(start, end);
 
@@ -468,15 +587,37 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
 
     // Transform posts
     const transformedPosts = posts.map(post => {
-      const { imageUrl } = extractImageFromContent(post.content || '');
+      let content = post.content || '';
+      
+      // Special handling for kitchen posts
+      if (exactTag === 'kitchenremodeling') {
+        // Remove the raw text section
+        const conclusionIndex = content.indexOf('Conclusion');
+        if (conclusionIndex !== -1) {
+          const lookingForIndex = content.indexOf('Looking for Home Remodelers in Denver', conclusionIndex);
+          if (lookingForIndex !== -1) {
+            content = content.substring(0, lookingForIndex).trim();
+          }
+        }
+      }
+
+      // Extract image from content
+      const { imageUrl } = extractImageFromContent(content);
+      
+      // Ensure image URL is properly formatted
+      let finalImageUrl = imageUrl;
+      if (finalImageUrl && !finalImageUrl.startsWith('http') && !finalImageUrl.startsWith('/')) {
+        finalImageUrl = '/' + finalImageUrl;
+      }
       
       return {
         ...post,
-        image_url: imageUrl || (exactTag === 'jerome' 
-          ? 'https://raw.githubusercontent.com/Vicsicard/imagecontent/main/onsite-blog-outdoor-backyard-image-3333333333.jpg'
-          : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                         post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                         'home'])
+        content,
+        image_url: finalImageUrl || (exactTag === 'Jerome' 
+          ? '/images/onsite-blog-Jerome-image-333.jpg'
+          : DEFAULT_IMAGES[exactTag === 'kitchenremodeling' ? 'kitchen' :
+                         exactTag === 'bathroom' ? 'bathroom' :
+                         'general'])
       } as BlogPost;
     });
 
