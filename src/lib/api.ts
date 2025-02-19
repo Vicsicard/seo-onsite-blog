@@ -1,13 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { BlogPost } from '@/types/blog';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('[Supabase] Missing environment variables:', {
     hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey
+    hasKey: !!supabaseKey,
+    envUrl: process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL ? 'Set' : 'Not set',
+    envKey: process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY ? 'Set' : 'Not set'
   });
 }
 
