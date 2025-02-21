@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { BlogPost } from '@/types/blog';
+import { marked } from 'marked';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY || '';
@@ -17,7 +18,19 @@ console.log('[Supabase] Testing connection...');
 console.log('[Supabase] URL:', supabaseUrl ? 'Set' : 'Not set');
 console.log('[Supabase] Key:', supabaseKey ? 'Set' : 'Not set');
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configure marked options
+marked.setOptions({
+  gfm: true,
+  breaks: true
+});
+
+// Function to convert markdown to HTML
+export async function markdownToHtml(markdown: string): Promise<string> {
+  if (!markdown) return '';
+  return await marked.parse(markdown);
+}
 
 // Test database connection
 (async () => {

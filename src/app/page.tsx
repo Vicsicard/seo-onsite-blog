@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
+import NewsletterSignup from '@/components/NewsletterSignup';
 
 export default function Page() {
   return (
@@ -67,7 +70,7 @@ export default function Page() {
           </div>
         </section>
 
-        {/* Jerome's Section */}
+        {/* Meet Jerome Section with Newsletter */}
         <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-gray-900">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div className="relative h-96 rounded-lg overflow-hidden">
@@ -93,6 +96,17 @@ export default function Page() {
                 Learn More About Jerome
               </Link>
             </div>
+          </div>
+
+          {/* Newsletter Section */}
+          <div className="mt-16 max-w-3xl mx-auto">
+            <h3 className="text-2xl font-bold text-white mb-4 text-center">
+              Stay Updated with Jerome
+            </h3>
+            <p className="text-gray-300 text-center mb-6">
+              Subscribe to receive expert tips and insights about luxury home remodeling.
+            </p>
+            <NewsletterSignup />
           </div>
         </section>
       </main>

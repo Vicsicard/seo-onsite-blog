@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
-import { fetchAllPosts } from '../../../../lib/api';
+import { fetchAllPosts } from '@/lib/api';
 
 export async function GET() {
   console.log('Handling GET request to /api/test-posts');
   
   try {
     console.log('Fetching all posts...');
-    const posts = await fetchAllPosts();
+    const { posts, error } = await fetchAllPosts({});
+    
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     
     const counts = {
       home: posts.homePosts.length,

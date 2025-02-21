@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Footer from '@/components/Footer';
+import { NewsletterModalProvider } from '@/contexts/NewsletterModalContext';
+import NewsletterModal from '@/components/NewsletterModal';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,10 +55,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-900 text-white min-h-screen`}>
-        <ErrorBoundary>
-          {children}
-          <Footer />
-        </ErrorBoundary>
+        <NewsletterModalProvider>
+          <ErrorBoundary>
+            {children}
+            <Footer />
+            <NewsletterModal />
+          </ErrorBoundary>
+        </NewsletterModalProvider>
       </body>
     </html>
   );

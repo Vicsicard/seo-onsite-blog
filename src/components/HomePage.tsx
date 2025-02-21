@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Hero from '@/components/Hero';
 import Header from '@/components/Header';
+import NewsletterSignup from '@/components/NewsletterSignup';
 
 export default function HomePage() {
   return (
@@ -68,6 +69,19 @@ export default function HomePage() {
                 </div>
               </div>
             </Link>
+          </div>
+        </section>
+
+        {/* Newsletter Section */}
+        <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto bg-black">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-white mb-6 text-center">
+              Stay Updated with Jerome
+            </h2>
+            <p className="text-gray-300 text-center mb-8">
+              Subscribe to receive expert tips and insights about luxury home remodeling.
+            </p>
+            <NewsletterSignup />
           </div>
         </section>
       </main>
