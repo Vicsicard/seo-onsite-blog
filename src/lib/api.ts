@@ -546,11 +546,11 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       clean: cleanSlug
     });
 
-    // Try to find the post using ILIKE for case-insensitive matching
+    // Try to find the post using exact match
     const { data: posts, error: dbError } = await supabase
       .from('blog_posts')
       .select('*')
-      .ilike('slug', `%${cleanSlug}%`)
+      .eq('slug', cleanSlug)
       .limit(1);
 
     if (dbError) {

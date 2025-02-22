@@ -1,10 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
+const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_BLOG_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_BLOG_SUPABASE_ANON_KEY
 );
 
 async function fetchAllPosts() {
@@ -34,12 +34,12 @@ function getStaticPages() {
   ];
 }
 
-function formatDate(date: string | Date): string {
+function formatDate(date) {
   const d = new Date(date);
   return d.toISOString().split('T')[0];
 }
 
-export async function generateSitemap() {
+async function generateSitemap() {
   try {
     const posts = await fetchAllPosts();
     const staticPages = getStaticPages();
@@ -104,3 +104,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     throw error;
   }
 }
+
+module.exports = {
+  generateSitemap
+};

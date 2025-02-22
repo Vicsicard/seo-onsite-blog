@@ -1,4 +1,4 @@
-import { generateSitemap } from '../src/lib/sitemap';
+const { generateSitemap } = require('../src/lib/sitemap');
 
 async function main() {
   try {
