@@ -39,9 +39,7 @@ export const metadata: Metadata = {
     }]
   },
   icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' }
-    ],
+    icon: '/favicon.ico',
     shortcut: '/favicon.ico',
     apple: '/favicon.ico'
   }
@@ -49,12 +47,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className="scroll-smooth">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-gray-900 text-white min-h-screen`}>
+    <html lang="en" className={`scroll-smooth ${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
+      <body className="font-sans antialiased bg-gray-900 text-white min-h-screen">
         <NewsletterModalProvider>
           <ErrorBoundary>
             {children}

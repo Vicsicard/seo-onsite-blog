@@ -3,15 +3,18 @@ import Image from 'next/image';
 import { BlogPost } from '@/lib/types';
 
 interface PostListProps {
-  posts: BlogPost[];
+  post?: BlogPost;
+  posts?: BlogPost[];
 }
 
 const DEFAULT_IMAGE = '/images/onsite-blog-luxury-home-image-444444.jpg';
 
-export default function PostList({ posts }: PostListProps) {
+export default function PostList({ post, posts }: PostListProps) {
+  const postsToRender = post ? [post] : posts || [];
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {posts.map((post) => (
+      {postsToRender.map((post) => (
         <Link 
           key={post.id} 
           href={`/tips/${post.slug}`}

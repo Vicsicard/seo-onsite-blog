@@ -1,34 +1,43 @@
 'use client';
 
-import Header from '@/components/Header';
+import { useEffect } from 'react';
+import Link from 'next/link';
 
-export default function Error({
+export default function TipsError({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error('[TipsError]', error);
+  }, [error]);
+
   return (
-    <div className="min-h-screen bg-gray-900">
-      <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center text-white">
-          <h1 className="text-4xl font-bold mb-4">Error Loading Tip</h1>
-          <p className="text-xl mb-8">Unable to load the requested tip. Please try again later.</p>
-          <button
-            onClick={reset}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition duration-150 ease-in-out"
-          >
-            Try Again
-          </button>
-          {process.env.NODE_ENV === 'development' && (
-            <pre className="mt-8 p-4 bg-gray-800 rounded text-left overflow-auto text-sm">
-              {error.message}
-            </pre>
-          )}
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center px-4">
+      <div className="max-w-xl w-full">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Unable to Load Tips</h1>
+          <p className="text-gray-300 mb-8">
+            We're having trouble loading Jerome's tips. This could be due to a temporary connection issue.
+          </p>
+          <div className="space-x-4">
+            <button
+              onClick={() => reset()}
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-black bg-white hover:bg-gray-100 transition-colors duration-200"
+            >
+              Try Again
+            </button>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center px-6 py-3 border border-white text-base font-medium rounded-md text-white hover:bg-white/10 transition-colors duration-200"
+            >
+              Go Home
+            </Link>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
