@@ -73,28 +73,32 @@ function isValidImageUrl(url: string): boolean {
   }
 }
 
-// Function to ensure URL is absolute without double-prefixing
+// Function to ensure URL is absolute with correct protocol
 export function ensureAbsoluteUrl(url: string | null): string | null {
   if (!url) return null;
-
-  try {
-    // Remove any double https:// that might have been added
-    const cleanUrl = url.replace(/^https?:\/\/https?:\/\//, 'https://');
-    
-    // If it's already absolute, return the cleaned URL
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      return cleanUrl;
-    }
-    
-    // Remove any protocol-relative format
-    const withoutProtocol = cleanUrl.replace(/^\/\//, '');
-    
-    // Add https:// prefix
-    return `https://${withoutProtocol}`;
-  } catch (error) {
-    console.error('[API] Invalid URL:', url, error);
-    return null;
+  
+  // Already has protocol, return it as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
+  
+  // Handle protocol-relative URLs (starting with //)
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+  
+  // Handle relative URLs (starting with /)
+  if (url.startsWith('/')) {
+    return url;
+  }
+  
+  // If it's a relative URL without a leading slash, add one
+  if (!url.match(/^[a-zA-Z]+:\/\//) && !url.startsWith('/')) {
+    return `/${url}`;
+  }
+  
+  // For other cases, return as is
+  return url;
 }
 
 // Function to extract image URL from content
@@ -139,7 +143,7 @@ export function extractImageFromContent(content: string): { imageUrl: string | n
       return defaultResult;
     }
 
-    // Process the URL to ensure it's valid
+    // Process the URL to ensure it's valid, handling protocol-relative URLs
     const processedUrl = ensureAbsoluteUrl(imageUrl);
     
     // Remove the first found image reference from content
@@ -294,6 +298,25 @@ function processPostContent(content: string): ProcessedContent {
   }
 }
 
+// Allowed tags for the blog
+const ALLOWED_TAGS = ['homeremodeling', 'bathroomremodeling', 'kitchenremodeling', 'Jerome'];
+
+// Allowed tags converted to lowercase for case-insensitive matching
+const ALLOWED_TAGS_LOWERCASE = ALLOWED_TAGS.map(tag => tag.toLowerCase());
+
+// Function to check if a post has allowed tags
+function hasAllowedTag(tags: string | null): boolean {
+  if (!tags) return false;
+  
+  // Convert tags to lowercase for case-insensitive comparison
+  const tagsLower = tags.toLowerCase();
+  
+  // Check if any allowed tag is in the post's tags
+  return ALLOWED_TAGS_LOWERCASE.some(allowedTag => 
+    tagsLower === allowedTag || tagsLower.includes(allowedTag)
+  );
+}
+
 export async function fetchAllPosts({ 
   tags = [], 
   orderBy = { column: 'published_at', order: 'desc' } 
@@ -306,22 +329,23 @@ export async function fetchAllPosts({
   try {
     let query = supabase
       .from('blog_posts')
-      .select('*');
-
-    // Add tag filtering if specified
+      .select('*')
+      .order(orderBy.column, { ascending: orderBy.order === 'asc' });
+      
+    // Filter by tag if specified
     if (tags.length > 0) {
-      // For Jerome tag, use exact match
-      if (tags.includes('Jerome')) {
-        query = query.eq('tags', 'Jerome');
-      } else {
-        // For other tags, use ILIKE
-        const tagConditions = tags.map(tag => `tags ilike '%${tag}%'`);
-        query = query.or(tagConditions.join(','));
+      // Using .or() and .like() to match any of the provided tags
+      let filter = '';
+      tags.forEach((tag, index) => {
+        if (index > 0) filter += ',';
+        filter += `${tag}`;
+      });
+      
+      if (filter) {
+        console.log(`[fetchAllPosts] Filtering by tags: ${filter}`);
+        query.or(`tags.eq.${filter},tags.ilike.%${filter}%`);
       }
     }
-
-    // Add ordering
-    query = query.order(orderBy.column, { ascending: orderBy.order === 'asc' });
 
     const { data: posts, error } = await query;
 
@@ -335,8 +359,15 @@ export async function fetchAllPosts({
       return { posts: [], error: null };
     }
 
+    // Filter posts to only include those with allowed tags if no specific tags were requested
+    let filteredPosts = posts;
+    if (tags.length === 0) {
+      filteredPosts = posts.filter(post => hasAllowedTag(post.tags));
+      console.log(`[fetchAllPosts] Filtered to ${filteredPosts.length} posts with allowed tags`);
+    }
+
     // Process posts to ensure image_url is set
-    const processedPosts = posts.map(post => {
+    const processedPosts = filteredPosts.map(post => {
       let imageUrl = post.image_url;
       
       // If no image_url, try to extract from content
@@ -350,6 +381,12 @@ export async function fetchAllPosts({
         } catch (error) {
           console.error('[fetchAllPosts] Error extracting image from content:', error);
         }
+      }
+
+      // If image URL is protocol-relative, fix it
+      if (imageUrl && imageUrl.startsWith('//')) {
+        imageUrl = `https:${imageUrl}`;
+        console.log('[fetchAllPosts] Fixed protocol-relative image URL:', imageUrl);
       }
 
       // If still no image, use default based on tags
@@ -413,7 +450,7 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
 
     // If this is a tip, only get posts with Jerome tag
     if (isTip) {
-      query = query.eq('tags', 'Jerome');  // Exact match for Jerome tag
+      query = query.eq('tags', 'Jerome');  // Exact match since we know the tag is stored as 'Jerome'
     }
 
     let { data: posts, error: dbError } = await query;
@@ -474,6 +511,12 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       console.log('[fetchPostBySlug] Post found but not a Jerome tip:', nonNullablePost.tags);
       return { post: null, error: 'Post not found' };
     }
+    
+    // For non-tips, verify it has an allowed tag if it's not Jerome
+    if (!isTip && nonNullablePost.tags !== 'Jerome' && !hasAllowedTag(nonNullablePost.tags)) {
+      console.log('[fetchPostBySlug] Post found but does not have allowed tag:', nonNullablePost.tags);
+      return { post: null, error: 'Post not found' };
+    }
 
     // Process the post
     const post = nonNullablePost;
@@ -507,6 +550,10 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
         post.image_url = '/images/onsite-blog-luxury-home-image-444444.jpg';
       }
       console.log('[fetchPostBySlug] Using default image based on tag:', { tag: post.tags, image: post.image_url });
+    } else if (post.image_url.startsWith('//')) {
+      // Handle protocol-relative URLs
+      post.image_url = `https:${post.image_url}`;
+      console.log('[fetchPostBySlug] Fixed protocol-relative image URL:', post.image_url);
     }
 
     console.log('[fetchPostBySlug] Successfully processed post:', {

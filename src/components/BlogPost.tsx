@@ -67,6 +67,12 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
   // Process the image URL based on its format
   let initialImageUrl = rawImageUrl;
   
+  // Handle protocol-relative URLs (starting with //)
+  if (initialImageUrl && initialImageUrl.startsWith('//')) {
+    initialImageUrl = `https:${initialImageUrl}`;
+    console.log('[BlogPost] Converted protocol-relative URL:', initialImageUrl);
+  }
+  
   // If it's a relative URL, make sure it starts with a slash
   if (initialImageUrl && !initialImageUrl.startsWith('http') && !initialImageUrl.startsWith('/')) {
     initialImageUrl = '/' + initialImageUrl;
