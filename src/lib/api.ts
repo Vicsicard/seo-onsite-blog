@@ -306,70 +306,40 @@ export async function fetchAllPosts({
       return { posts: [], error: null };
     }
 
-    // Filter posts to only include those with allowed tags if no specific tags were requested
-    let filteredPosts = posts;
-    if (tags.length === 0) {
-      filteredPosts = posts.filter(post => hasAllowedTag(post.tags));
-      console.log(`[fetchAllPosts] Filtered to ${filteredPosts.length} posts with allowed tags`);
-    } else {
-      // If specific tags were requested, filter using pattern matching
-      filteredPosts = posts.filter(post => {
-        if (!post.tags) return false;
-        const tagsLower = post.tags.toLowerCase();
-        
-        return tags.some(tag => {
-          if (tag === 'kitchenremodeling') {
-            return tagsLower.includes('kitchen');
-          } else if (tag === 'bathroomremodeling') {
-            return tagsLower.includes('bathroom');
-          } else if (tag === 'homeremodeling') {
-            return tagsLower.includes('home') && 
-                   !tagsLower.includes('kitchen') && 
-                   !tagsLower.includes('bathroom');
-          } else if (tag === 'Jerome') {
-            return post.tags === 'Jerome';
+    // Process posts
+    const processedPosts = posts.map(post => {
+      let content = post.content || '';
+      
+      // Special handling for kitchen posts
+      if (post.tags === 'kitchenremodeling') {
+        // Remove the raw text section
+        const conclusionIndex = content.indexOf('Conclusion');
+        if (conclusionIndex !== -1) {
+          const lookingForIndex = content.indexOf('Looking for Home Remodelers in Denver', conclusionIndex);
+          if (lookingForIndex !== -1) {
+            content = content.substring(0, lookingForIndex).trim();
           }
-          return false;
-        });
-      });
-      
-      console.log(`[fetchAllPosts] Found ${filteredPosts.length} posts matching requested tags: ${tags.join(', ')}`);
-    }
-
-    // Process posts to ensure image_url is set
-    const processedPosts = filteredPosts.map(post => {
-      let imageUrl = post.image_url;
-      
-      // If no image_url, try to extract from content
-      if (!imageUrl && post.content) {
-        const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
-        imageUrl = extractedUrl;
-      }
-
-      // If image URL is protocol-relative, fix it
-      if (imageUrl && imageUrl.startsWith('//')) {
-        imageUrl = `https:${imageUrl}`;
-        console.log('[fetchAllPosts] Fixed protocol-relative image URL:', imageUrl);
-      }
-
-      // If still no image, use default based on tags
-      if (!imageUrl) {
-        if (post.tags === 'Jerome') {
-          imageUrl = '/images/onsite-blog-Jerome-image-333.jpg';
-        } else if (post.tags?.toLowerCase().includes('kitchen')) {
-          imageUrl = '/images/onsite-blog-kitchen-image-333333333.jpg';
-        } else if (post.tags?.toLowerCase().includes('bathroom')) {
-          imageUrl = '/images/onsite-blog-bathroom-image-333333.jpg';
-        } else {
-          imageUrl = '/images/onsite-blog-luxury-home-image-444444.jpg';
         }
-        console.log('[fetchAllPosts] Using default image based on tag:', { tag: post.tags, image: imageUrl });
       }
 
+      // Extract image from content
+      const { imageUrl } = extractImageFromContent(content);
+      
+      // Ensure image URL is properly formatted
+      let finalImageUrl = imageUrl;
+      if (finalImageUrl && !finalImageUrl.startsWith('http') && !finalImageUrl.startsWith('/')) {
+        finalImageUrl = '/' + finalImageUrl;
+      }
+      
       return {
         ...post,
-        image_url: imageUrl
-      };
+        content,
+        image_url: finalImageUrl || (post.tags === 'Jerome' 
+          ? '/images/onsite-blog-Jerome-image-333.jpg'
+          : DEFAULT_IMAGES[post.tags === 'kitchenremodeling' ? 'kitchen' :
+                         post.tags === 'bathroomremodeling' ? 'bathroom' :
+                         'general'])
+      } as BlogPost;
     });
 
     console.log('[fetchAllPosts] Success:', { 
@@ -408,7 +378,8 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
     // First try an exact match with the decoded slug
     let query = supabase
       .from('blog_posts')
-      .select('*');
+      .select('*')
+      .ilike('slug', urlDecoded);  // Case-insensitive match for slug
 
     // If this is a tip, only get posts with Jerome tag
     if (isTip) {
@@ -471,12 +442,6 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
     // For tips, verify it has the Jerome tag
     if (isTip && post.tags !== 'Jerome') {
       console.log('[fetchPostBySlug] Post found but not a Jerome tip:', post.tags);
-      return { post: null, error: 'Post not found' };
-    }
-
-    // For non-tips, verify it has an allowed tag if it's not Jerome
-    if (!isTip && post.tags !== 'Jerome' && !hasAllowedTag(post.tags)) {
-      console.log('[fetchPostBySlug] Post found but does not have allowed tag:', post.tags);
       return { post: null, error: 'Post not found' };
     }
 
@@ -636,10 +601,11 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
   console.log(`[API] Fetching posts for tag: ${exactTag}, range: ${start}-${end}`);
 
   try {
-    // Add filtering for tag patterns since exact matching isn't working
+    // Use exact matching for tags as it was working before
     const { data: posts, error } = await supabase
       .from('blog_posts')
       .select('*')
+      .eq('tags', exactTag)  // Exact match for tags
       .order('created_at', { ascending: false })
       .range(start, end);
 
@@ -653,32 +619,8 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
       return { posts: [], error: null };
     }
 
-    // Filter by tag pattern rather than exact match
-    let filteredPosts = posts;
-    if (exactTag === 'kitchenremodeling') {
-      filteredPosts = posts.filter(post => 
-        post.tags && post.tags.toLowerCase().includes('kitchen')
-      );
-    } else if (exactTag === 'bathroomremodeling') {
-      filteredPosts = posts.filter(post => 
-        post.tags && post.tags.toLowerCase().includes('bathroom')
-      );
-    } else if (exactTag === 'homeremodeling') {
-      filteredPosts = posts.filter(post => 
-        post.tags && post.tags.toLowerCase().includes('home') && 
-        !post.tags.toLowerCase().includes('kitchen') && 
-        !post.tags.toLowerCase().includes('bathroom')
-      );
-    } else if (exactTag === 'Jerome') {
-      filteredPosts = posts.filter(post => 
-        post.tags === 'Jerome'
-      );
-    }
-
-    console.log(`[API] Filtered from ${posts.length} to ${filteredPosts.length} posts for tag pattern: ${exactTag}`);
-
     // Transform posts
-    const transformedPosts = filteredPosts.map(post => {
+    const transformedPosts = posts.map(post => {
       let content = post.content || '';
       
       // Special handling for kitchen posts
