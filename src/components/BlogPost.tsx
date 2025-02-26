@@ -64,12 +64,53 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
   const rawImageUrl = post.image_url || DEFAULT_IMAGE;
   console.log('[BlogPost] Raw image URL:', rawImageUrl);
   
-  const imageUrl = ensureAbsoluteUrl(rawImageUrl);
-  console.log('[BlogPost] Processed image URL:', imageUrl);
+  // Process the image URL based on its format
+  let initialImageUrl = rawImageUrl;
   
-  // Use default image if there's an error or no valid image URL
-  const displayImage = imageError || !imageUrl ? DEFAULT_IMAGE : imageUrl;
-  console.log('[BlogPost] Final display image:', displayImage);
+  // If it's a relative URL, make sure it starts with a slash
+  if (initialImageUrl && !initialImageUrl.startsWith('http') && !initialImageUrl.startsWith('/')) {
+    initialImageUrl = '/' + initialImageUrl;
+  }
+
+  // Clean any double slashes except for protocol
+  if (initialImageUrl && !initialImageUrl.startsWith('http')) {
+    initialImageUrl = initialImageUrl.replace(/\/+/g, '/');
+  }
+  
+  console.log('[BlogPost] Processed image URL:', initialImageUrl);
+  
+  // Use state to track the current display image with initial value
+  const [displayImage, setDisplayImage] = useState(initialImageUrl || DEFAULT_IMAGE);
+
+  // Handle image loading errors
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.target as HTMLImageElement;
+    console.error('[BlogPost] Image load error:', {
+      attemptedImage: displayImage,
+      currentSrc: target.currentSrc,
+      naturalWidth: target.naturalWidth,
+      naturalHeight: target.naturalHeight,
+      error: e
+    });
+    
+    // Fall back to default image based on post tags
+    let fallbackImage = DEFAULT_IMAGE;
+    
+    if (post.tags) {
+      const tags = post.tags.toLowerCase();
+      if (tags.includes('kitchen')) {
+        fallbackImage = '/images/onsite-blog-kitchen-image-333333333.jpg';
+      } else if (tags.includes('bathroom')) {
+        fallbackImage = '/images/onsite-blog-bathroom-image-333333.jpg';
+      } else if (tags === 'jerome') {
+        fallbackImage = '/images/onsite-blog-Jerome-image-333.jpg';
+      }
+    }
+    
+    console.log('[BlogPost] Using fallback image:', fallbackImage);
+    setDisplayImage(fallbackImage);
+    setImageError(true);
+  };
 
   if (isPreview) {
     const postUrl = post.tags === 'Jerome' 
@@ -85,17 +126,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
               alt={post.title}
               fill
               className="object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                console.error('[BlogPost] Image load error:', {
-                  displayImage,
-                  currentSrc: target.currentSrc,
-                  naturalWidth: target.naturalWidth,
-                  naturalHeight: target.naturalHeight,
-                  error: e
-                });
-                setImageError(true);
-              }}
+              onError={handleImageError}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>
@@ -123,17 +154,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
           alt={post.title}
           fill
           className="object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            console.error('[BlogPost] Image load error:', {
-              displayImage,
-              currentSrc: target.currentSrc,
-              naturalWidth: target.naturalWidth,
-              naturalHeight: target.naturalHeight,
-              error: e
-            });
-            setImageError(true);
-          }}
+          onError={handleImageError}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           priority
         />

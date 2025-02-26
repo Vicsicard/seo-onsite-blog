@@ -54,7 +54,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
 // Define default images with correct URLs
 const DEFAULT_IMAGES = {
   kitchen: '/images/onsite-blog-kitchen-image-333333333.jpg',
-  bathroom: '/images/onsite-blog-bathroom-image-333333333.jpg',
+  bathroom: '/images/onsite-blog-bathroom-image-333333.jpg',
   general: '/images/onsite-blog-luxury-home-image-444444.jpg'
 } as const;
 
@@ -108,24 +108,53 @@ export function extractImageFromContent(content: string): { imageUrl: string | n
       return defaultResult;
     }
 
-    // Try to find an image URL in the content
-    const imgMatch = content.match(/!\[.*?\]\((.*?)\)/);
-    if (!imgMatch) {
+    // Try multiple patterns to find images in the content
+    // Pattern 1: Standard Markdown image syntax: ![alt text](url)
+    const markdownImgMatch = content.match(/!\[.*?\]\((.*?)\)/);
+    
+    // Pattern 2: HTML img tag: <img src="url" ... />
+    const htmlImgMatch = content.match(/<img.*?src=["'](.*?)["']/i);
+    
+    // Pattern 3: Relative path in quotes: "/images/something.jpg"
+    const quotedImgMatch = content.match(/["'](\/images\/.*?\.(?:jpe?g|png|gif|webp))["']/i);
+
+    let imageUrl = null;
+    let matchText = '';
+
+    // Use the first successful match
+    if (markdownImgMatch) {
+      imageUrl = markdownImgMatch[1];
+      matchText = markdownImgMatch[0];
+      console.log('[API] Found Markdown image:', imageUrl);
+    } else if (htmlImgMatch) {
+      imageUrl = htmlImgMatch[1];
+      matchText = htmlImgMatch[0];
+      console.log('[API] Found HTML image:', imageUrl);
+    } else if (quotedImgMatch) {
+      imageUrl = quotedImgMatch[1];
+      matchText = quotedImgMatch[0];
+      console.log('[API] Found quoted image path:', imageUrl);
+    } else {
       console.log('[API] No image found in content');
       return defaultResult;
     }
 
-    const imageUrl = ensureAbsoluteUrl(imgMatch[1]);
-    const cleanContent = content.replace(imgMatch[0], '').trim();
+    // Process the URL to ensure it's valid
+    const processedUrl = ensureAbsoluteUrl(imageUrl);
+    
+    // Remove the first found image reference from content
+    // This is optional - you might want to keep the image in the content
+    const cleanContent = content.replace(matchText, '').trim();
 
-    console.log('[API] Extracted image URL:', { original: imgMatch[1], fixed: imageUrl });
-    return { imageUrl, cleanContent };
+    console.log('[API] Extracted image URL:', { original: imageUrl, processed: processedUrl });
+    return { imageUrl: processedUrl, cleanContent };
   } catch (error) {
     console.error('[API] Error extracting image from content:', error);
     return { imageUrl: null, cleanContent: content };
   }
 }
 
+// Function to remove CTA text from content
 function removeCTAText(content: string): string {
   if (!content) return '';
 
@@ -312,17 +341,29 @@ export async function fetchAllPosts({
       
       // If no image_url, try to extract from content
       if (!imageUrl && post.content) {
-        const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
-        imageUrl = extractedUrl;
+        try {
+          const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
+          if (extractedUrl) {
+            console.log('[fetchAllPosts] Extracted image from content:', extractedUrl);
+            imageUrl = extractedUrl;
+          }
+        } catch (error) {
+          console.error('[fetchAllPosts] Error extracting image from content:', error);
+        }
       }
 
       // If still no image, use default based on tags
       if (!imageUrl) {
-        imageUrl = post.tags === 'Jerome'
-          ? '/images/onsite-blog-Jerome-image-333.jpg'
-          : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                        post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                        'general'];
+        if (post.tags === 'Jerome') {
+          imageUrl = '/images/onsite-blog-Jerome-image-333.jpg';
+        } else if (post.tags?.toLowerCase().includes('kitchen')) {
+          imageUrl = '/images/onsite-blog-kitchen-image-333333333.jpg';
+        } else if (post.tags?.toLowerCase().includes('bathroom')) {
+          imageUrl = '/images/onsite-blog-bathroom-image-333333.jpg';
+        } else {
+          imageUrl = '/images/onsite-blog-luxury-home-image-444444.jpg';
+        }
+        console.log('[fetchAllPosts] Using default image based on tag:', { tag: post.tags, image: imageUrl });
       }
 
       return {
@@ -426,46 +467,57 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       return { post: null, error: 'Post not found' };
     }
 
-    const post = posts[0];
+    const nonNullablePost = posts[0];
 
     // For tips, verify it has the Jerome tag
-    if (isTip && post.tags !== 'Jerome') {
-      console.log('[fetchPostBySlug] Post found but not a Jerome tip:', post.tags);
+    if (isTip && nonNullablePost.tags !== 'Jerome') {
+      console.log('[fetchPostBySlug] Post found but not a Jerome tip:', nonNullablePost.tags);
       return { post: null, error: 'Post not found' };
     }
 
-    // Process the post content
-    let imageUrl = post.image_url;
+    // Process the post
+    const post = nonNullablePost;
     
-    // If no image_url, try to extract from content
-    if (!imageUrl && post.content) {
-      const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
-      imageUrl = extractedUrl;
+    // Process content if it exists
+    if (post.content) {
+      const { cleanContent, description, imageUrl: extractedImageUrl } = processPostContent(post.content);
+      post.content = cleanContent;
+      
+      // Use extracted image if the post doesn't already have one
+      if (!post.image_url && extractedImageUrl) {
+        post.image_url = extractedImageUrl;
+        console.log('[fetchPostBySlug] Using image extracted from content:', extractedImageUrl);
+      }
+      
+      // Set description if not already set
+      if (!post.description) {
+        post.description = description;
+      }
     }
-
-    // If still no image, use default based on tags
-    if (!imageUrl) {
-      imageUrl = post.tags === 'Jerome'
-        ? '/images/onsite-blog-Jerome-image-333.jpg'
-        : DEFAULT_IMAGES[post.tags?.toLowerCase().includes('kitchen') ? 'kitchen' :
-                      post.tags?.toLowerCase().includes('bathroom') ? 'bathroom' :
-                      'general'];
+    
+    // Use default image if none set
+    if (!post.image_url) {
+      if (post.tags === 'Jerome') {
+        post.image_url = '/images/onsite-blog-Jerome-image-333.jpg';
+      } else if (post.tags?.toLowerCase().includes('kitchen')) {
+        post.image_url = '/images/onsite-blog-kitchen-image-333333333.jpg';
+      } else if (post.tags?.toLowerCase().includes('bathroom')) {
+        post.image_url = '/images/onsite-blog-bathroom-image-333333.jpg';
+      } else {
+        post.image_url = '/images/onsite-blog-luxury-home-image-444444.jpg';
+      }
+      console.log('[fetchPostBySlug] Using default image based on tag:', { tag: post.tags, image: post.image_url });
     }
-
-    const processedPost = {
-      ...post,
-      image_url: imageUrl
-    };
 
     console.log('[fetchPostBySlug] Successfully processed post:', {
-      title: processedPost.title,
-      slug: processedPost.slug,
-      hasContent: !!processedPost.content,
-      tags: processedPost.tags,
-      imageUrl: processedPost.image_url
+      title: post.title,
+      slug: post.slug,
+      hasContent: !!post.content,
+      tags: post.tags,
+      imageUrl: post.image_url
     });
 
-    return { post: processedPost, error: null };
+    return { post, error: null };
   } catch (error) {
     console.error('[fetchPostBySlug] Unexpected error:', error);
     return { post: null, error: 'Post not found' };
