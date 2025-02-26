@@ -54,7 +54,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
 // Define default images with correct URLs
 const DEFAULT_IMAGES = {
   kitchen: '/images/onsite-blog-kitchen-image-333333333.jpg',
-  bathroom: '/images/onsite-blog-bathroom-image-333333.jpg',
+  bathroom: '/images/onsite-blog-bathroom-image-333333333.jpg',
   general: '/images/onsite-blog-luxury-home-image-444444.jpg'
 } as const;
 
@@ -73,32 +73,28 @@ function isValidImageUrl(url: string): boolean {
   }
 }
 
-// Function to ensure URL is absolute with correct protocol
+// Function to ensure URL is absolute without double-prefixing
 export function ensureAbsoluteUrl(url: string | null): string | null {
   if (!url) return null;
-  
-  // Already has protocol, return it as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
+
+  try {
+    // Remove any double https:// that might have been added
+    const cleanUrl = url.replace(/^https?:\/\/https?:\/\//, 'https://');
+    
+    // If it's already absolute, return the cleaned URL
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return cleanUrl;
+    }
+    
+    // Remove any protocol-relative format
+    const withoutProtocol = cleanUrl.replace(/^\/\//, '');
+    
+    // Add https:// prefix
+    return `https://${withoutProtocol}`;
+  } catch (error) {
+    console.error('[API] Invalid URL:', url, error);
+    return null;
   }
-  
-  // Handle protocol-relative URLs (starting with //)
-  if (url.startsWith('//')) {
-    return `https:${url}`;
-  }
-  
-  // Handle relative URLs (starting with /)
-  if (url.startsWith('/')) {
-    return url;
-  }
-  
-  // If it's a relative URL without a leading slash, add one
-  if (!url.match(/^[a-zA-Z]+:\/\//) && !url.startsWith('/')) {
-    return `/${url}`;
-  }
-  
-  // For other cases, return as is
-  return url;
 }
 
 // Function to extract image URL from content
@@ -112,53 +108,24 @@ export function extractImageFromContent(content: string): { imageUrl: string | n
       return defaultResult;
     }
 
-    // Try multiple patterns to find images in the content
-    // Pattern 1: Standard Markdown image syntax: ![alt text](url)
-    const markdownImgMatch = content.match(/!\[.*?\]\((.*?)\)/);
-    
-    // Pattern 2: HTML img tag: <img src="url" ... />
-    const htmlImgMatch = content.match(/<img.*?src=["'](.*?)["']/i);
-    
-    // Pattern 3: Relative path in quotes: "/images/something.jpg"
-    const quotedImgMatch = content.match(/["'](\/images\/.*?\.(?:jpe?g|png|gif|webp))["']/i);
-
-    let imageUrl = null;
-    let matchText = '';
-
-    // Use the first successful match
-    if (markdownImgMatch) {
-      imageUrl = markdownImgMatch[1];
-      matchText = markdownImgMatch[0];
-      console.log('[API] Found Markdown image:', imageUrl);
-    } else if (htmlImgMatch) {
-      imageUrl = htmlImgMatch[1];
-      matchText = htmlImgMatch[0];
-      console.log('[API] Found HTML image:', imageUrl);
-    } else if (quotedImgMatch) {
-      imageUrl = quotedImgMatch[1];
-      matchText = quotedImgMatch[0];
-      console.log('[API] Found quoted image path:', imageUrl);
-    } else {
+    // Try to find an image URL in the content
+    const imgMatch = content.match(/!\[.*?\]\((.*?)\)/);
+    if (!imgMatch) {
       console.log('[API] No image found in content');
       return defaultResult;
     }
 
-    // Process the URL to ensure it's valid, handling protocol-relative URLs
-    const processedUrl = ensureAbsoluteUrl(imageUrl);
-    
-    // Remove the first found image reference from content
-    // This is optional - you might want to keep the image in the content
-    const cleanContent = content.replace(matchText, '').trim();
+    const imageUrl = ensureAbsoluteUrl(imgMatch[1]);
+    const cleanContent = content.replace(imgMatch[0], '').trim();
 
-    console.log('[API] Extracted image URL:', { original: imageUrl, processed: processedUrl });
-    return { imageUrl: processedUrl, cleanContent };
+    console.log('[API] Extracted image URL:', { original: imgMatch[1], fixed: imageUrl });
+    return { imageUrl, cleanContent };
   } catch (error) {
     console.error('[API] Error extracting image from content:', error);
     return { imageUrl: null, cleanContent: content };
   }
 }
 
-// Function to remove CTA text from content
 function removeCTAText(content: string): string {
   if (!content) return '';
 
@@ -298,25 +265,6 @@ function processPostContent(content: string): ProcessedContent {
   }
 }
 
-// Allowed tags for the blog
-const ALLOWED_TAGS = ['homeremodeling', 'bathroomremodeling', 'kitchenremodeling', 'Jerome'];
-
-// Allowed tags converted to lowercase for case-insensitive matching
-const ALLOWED_TAGS_LOWERCASE = ALLOWED_TAGS.map(tag => tag.toLowerCase());
-
-// Function to check if a post has allowed tags
-function hasAllowedTag(tags: string | null): boolean {
-  if (!tags) return false;
-  
-  // Convert tags to lowercase for case-insensitive comparison
-  const tagsLower = tags.toLowerCase();
-  
-  // Check if any allowed tag is in the post's tags
-  return ALLOWED_TAGS_LOWERCASE.some(allowedTag => 
-    tagsLower === allowedTag || tagsLower.includes(allowedTag)
-  );
-}
-
 export async function fetchAllPosts({ 
   tags = [], 
   orderBy = { column: 'published_at', order: 'desc' } 
@@ -329,23 +277,22 @@ export async function fetchAllPosts({
   try {
     let query = supabase
       .from('blog_posts')
-      .select('*')
-      .order(orderBy.column, { ascending: orderBy.order === 'asc' });
-      
-    // Filter by tag if specified
+      .select('*');
+
+    // Add tag filtering if specified
     if (tags.length > 0) {
-      // Using .or() and .like() to match any of the provided tags
-      let filter = '';
-      tags.forEach((tag, index) => {
-        if (index > 0) filter += ',';
-        filter += `${tag}`;
-      });
-      
-      if (filter) {
-        console.log(`[fetchAllPosts] Filtering by tags: ${filter}`);
-        query.or(`tags.eq.${filter},tags.ilike.%${filter}%`);
+      // For Jerome tag, use exact match
+      if (tags.includes('Jerome')) {
+        query = query.eq('tags', 'Jerome');
+      } else {
+        // For other tags, use ILIKE
+        const tagConditions = tags.map(tag => `tags ilike '%${tag}%'`);
+        query = query.or(tagConditions.join(','));
       }
     }
+
+    // Add ordering
+    query = query.order(orderBy.column, { ascending: orderBy.order === 'asc' });
 
     const { data: posts, error } = await query;
 
@@ -359,28 +306,14 @@ export async function fetchAllPosts({
       return { posts: [], error: null };
     }
 
-    // Filter posts to only include those with allowed tags if no specific tags were requested
-    let filteredPosts = posts;
-    if (tags.length === 0) {
-      filteredPosts = posts.filter(post => hasAllowedTag(post.tags));
-      console.log(`[fetchAllPosts] Filtered to ${filteredPosts.length} posts with allowed tags`);
-    }
-
     // Process posts to ensure image_url is set
-    const processedPosts = filteredPosts.map(post => {
+    const processedPosts = posts.map(post => {
       let imageUrl = post.image_url;
       
       // If no image_url, try to extract from content
       if (!imageUrl && post.content) {
-        try {
-          const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
-          if (extractedUrl) {
-            console.log('[fetchAllPosts] Extracted image from content:', extractedUrl);
-            imageUrl = extractedUrl;
-          }
-        } catch (error) {
-          console.error('[fetchAllPosts] Error extracting image from content:', error);
-        }
+        const { imageUrl: extractedUrl } = extractImageFromContent(post.content);
+        imageUrl = extractedUrl;
       }
 
       // If image URL is protocol-relative, fix it
@@ -450,7 +383,7 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
 
     // If this is a tip, only get posts with Jerome tag
     if (isTip) {
-      query = query.eq('tags', 'Jerome');  // Exact match since we know the tag is stored as 'Jerome'
+      query = query.eq('tags', 'Jerome');  // Exact match for Jerome tag
     }
 
     let { data: posts, error: dbError } = await query;
@@ -504,42 +437,34 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
       return { post: null, error: 'Post not found' };
     }
 
-    const nonNullablePost = posts[0];
+    const post = posts[0];
 
     // For tips, verify it has the Jerome tag
-    if (isTip && nonNullablePost.tags !== 'Jerome') {
-      console.log('[fetchPostBySlug] Post found but not a Jerome tip:', nonNullablePost.tags);
-      return { post: null, error: 'Post not found' };
-    }
-    
-    // For non-tips, verify it has an allowed tag if it's not Jerome
-    if (!isTip && nonNullablePost.tags !== 'Jerome' && !hasAllowedTag(nonNullablePost.tags)) {
-      console.log('[fetchPostBySlug] Post found but does not have allowed tag:', nonNullablePost.tags);
+    if (isTip && post.tags !== 'Jerome') {
+      console.log('[fetchPostBySlug] Post found but not a Jerome tip:', post.tags);
       return { post: null, error: 'Post not found' };
     }
 
-    // Process the post
-    const post = nonNullablePost;
-    
-    // Process content if it exists
-    if (post.content) {
-      const { cleanContent, description, imageUrl: extractedImageUrl } = processPostContent(post.content);
-      post.content = cleanContent;
-      
-      // Use extracted image if the post doesn't already have one
-      if (!post.image_url && extractedImageUrl) {
-        post.image_url = extractedImageUrl;
-        console.log('[fetchPostBySlug] Using image extracted from content:', extractedImageUrl);
-      }
-      
-      // Set description if not already set
-      if (!post.description) {
-        post.description = description;
+    // Extract image URL from content if not already set
+    if (!post.image_url && post.content) {
+      try {
+        const { imageUrl } = extractImageFromContent(post.content);
+        post.image_url = imageUrl;
+        console.log('[fetchPostBySlug] Extracted image from content:', post.image_url);
+      } catch (error) {
+        console.error('[fetchPostBySlug] Error extracting image from content:', error);
       }
     }
-    
+
+    // Convert protocol-relative URLs to HTTPS
+    if (post.image_url && post.image_url.startsWith('//')) {
+      post.image_url = `https:${post.image_url}`;
+      console.log('[fetchPostBySlug] Fixed protocol-relative image URL:', post.image_url);
+    }
+
     // Use default image if none set
     if (!post.image_url) {
+      // Set appropriate default image based on tag
       if (post.tags === 'Jerome') {
         post.image_url = '/images/onsite-blog-Jerome-image-333.jpg';
       } else if (post.tags?.toLowerCase().includes('kitchen')) {
@@ -550,10 +475,6 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
         post.image_url = '/images/onsite-blog-luxury-home-image-444444.jpg';
       }
       console.log('[fetchPostBySlug] Using default image based on tag:', { tag: post.tags, image: post.image_url });
-    } else if (post.image_url.startsWith('//')) {
-      // Handle protocol-relative URLs
-      post.image_url = `https:${post.image_url}`;
-      console.log('[fetchPostBySlug] Fixed protocol-relative image URL:', post.image_url);
     }
 
     console.log('[fetchPostBySlug] Successfully processed post:', {

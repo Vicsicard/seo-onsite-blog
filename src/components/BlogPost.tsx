@@ -76,11 +76,16 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
   // If it's a relative URL, make sure it starts with a slash
   if (initialImageUrl && !initialImageUrl.startsWith('http') && !initialImageUrl.startsWith('/')) {
     initialImageUrl = '/' + initialImageUrl;
+    console.log('[BlogPost] Added leading slash to URL:', initialImageUrl);
   }
 
   // Clean any double slashes except for protocol
   if (initialImageUrl && !initialImageUrl.startsWith('http')) {
+    const before = initialImageUrl;
     initialImageUrl = initialImageUrl.replace(/\/+/g, '/');
+    if (before !== initialImageUrl) {
+      console.log('[BlogPost] Cleaned double slashes:', { before, after: initialImageUrl });
+    }
   }
   
   console.log('[BlogPost] Processed image URL:', initialImageUrl);
@@ -99,23 +104,19 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
       error: e
     });
     
-    // Fall back to default image based on post tags
-    let fallbackImage = DEFAULT_IMAGE;
+    // Try to apply default image based on tags
+    let defaultImage = DEFAULT_IMAGE;
     
-    if (post.tags) {
-      const tags = post.tags.toLowerCase();
-      if (tags.includes('kitchen')) {
-        fallbackImage = '/images/onsite-blog-kitchen-image-333333333.jpg';
-      } else if (tags.includes('bathroom')) {
-        fallbackImage = '/images/onsite-blog-bathroom-image-333333.jpg';
-      } else if (tags === 'jerome') {
-        fallbackImage = '/images/onsite-blog-Jerome-image-333.jpg';
-      }
+    if (post.tags === 'Jerome') {
+      defaultImage = '/images/onsite-blog-Jerome-image-333.jpg';
+    } else if (post.tags?.toLowerCase().includes('kitchen')) {
+      defaultImage = '/images/onsite-blog-kitchen-image-333333333.jpg';
+    } else if (post.tags?.toLowerCase().includes('bathroom')) {
+      defaultImage = '/images/onsite-blog-bathroom-image-333333.jpg';
     }
     
-    console.log('[BlogPost] Using fallback image:', fallbackImage);
-    setDisplayImage(fallbackImage);
-    setImageError(true);
+    console.log('[BlogPost] Applied fallback image:', defaultImage);
+    setDisplayImage(defaultImage);
   };
 
   if (isPreview) {
@@ -126,14 +127,13 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     return (
       <Link href={postUrl} className="block">
         <div className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <div className="relative h-48">
-            <Image
+          <div className="relative h-60 w-full">
+            {/* Always use a standard HTML img tag to avoid Next.js Image component issues */}
+            <img
               src={displayImage}
               alt={post.title}
-              fill
-              className="object-cover"
+              className="object-cover h-full w-full"
               onError={handleImageError}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>
           <div className="p-6">
@@ -155,14 +155,12 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
   return (
     <article className="prose prose-lg prose-invert mx-auto">
       <div className="relative w-full aspect-video mb-8 rounded-lg overflow-hidden">
-        <Image
+        {/* Always use a standard HTML img tag to avoid Next.js Image component issues */}
+        <img
           src={displayImage}
           alt={post.title}
-          fill
           className="object-cover"
           onError={handleImageError}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          priority
         />
       </div>
 

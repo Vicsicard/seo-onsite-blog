@@ -12,7 +12,9 @@ const nextConfig = {
       'github.com',
       'images.unsplash.com',
       'onsite-blog-images.s3.amazonaws.com',
-      'onsite-blog-images.s3.us-west-2.amazonaws.com'
+      'onsite-blog-images.s3.us-west-2.amazonaws.com',
+      '6be7e0906f1487fecf0b9cbd301defd6.cdn.bubble.io',
+      'cdn.bubble.io'
     ],
     // Enable image optimization for better Core Web Vitals
     unoptimized: false
