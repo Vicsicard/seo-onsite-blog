@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ioxyvgkpkgkpiwfgcjhx.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlveHl2Z2twa2drcGl3Zmdnamh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODg3MTEzMTksImV4cCI6MjAwNDI4NzMxOX0.YPOtPJJCwcF2UX4L8mjbhbqnXPUY4WHiLaH4NROlCyk';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function TestImages() {
   const [posts, setPosts] = useState<any[]>([]);

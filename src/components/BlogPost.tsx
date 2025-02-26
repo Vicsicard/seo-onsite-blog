@@ -117,6 +117,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     
     console.log('[BlogPost] Applied fallback image:', defaultImage);
     setDisplayImage(defaultImage);
+    setImageError(true);
   };
 
   if (isPreview) {
