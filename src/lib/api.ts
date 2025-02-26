@@ -306,8 +306,38 @@ export async function fetchAllPosts({
       return { posts: [], error: null };
     }
 
+    // Filter posts to only include those with allowed tags if no specific tags were requested
+    let filteredPosts = posts;
+    if (tags.length === 0) {
+      filteredPosts = posts.filter(post => hasAllowedTag(post.tags));
+      console.log(`[fetchAllPosts] Filtered to ${filteredPosts.length} posts with allowed tags`);
+    } else {
+      // If specific tags were requested, filter using pattern matching
+      filteredPosts = posts.filter(post => {
+        if (!post.tags) return false;
+        const tagsLower = post.tags.toLowerCase();
+        
+        return tags.some(tag => {
+          if (tag === 'kitchenremodeling') {
+            return tagsLower.includes('kitchen');
+          } else if (tag === 'bathroomremodeling') {
+            return tagsLower.includes('bathroom');
+          } else if (tag === 'homeremodeling') {
+            return tagsLower.includes('home') && 
+                   !tagsLower.includes('kitchen') && 
+                   !tagsLower.includes('bathroom');
+          } else if (tag === 'Jerome') {
+            return post.tags === 'Jerome';
+          }
+          return false;
+        });
+      });
+      
+      console.log(`[fetchAllPosts] Found ${filteredPosts.length} posts matching requested tags: ${tags.join(', ')}`);
+    }
+
     // Process posts to ensure image_url is set
-    const processedPosts = posts.map(post => {
+    const processedPosts = filteredPosts.map(post => {
       let imageUrl = post.image_url;
       
       // If no image_url, try to extract from content
@@ -378,12 +408,11 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
     // First try an exact match with the decoded slug
     let query = supabase
       .from('blog_posts')
-      .select('*')
-      .ilike('slug', urlDecoded);  // Case-insensitive match for slug
+      .select('*');
 
     // If this is a tip, only get posts with Jerome tag
     if (isTip) {
-      query = query.eq('tags', 'Jerome');  // Exact match for Jerome tag
+      query = query.eq('tags', 'Jerome');  // Exact match since we know the tag is stored as 'Jerome'
     }
 
     let { data: posts, error: dbError } = await query;
@@ -442,6 +471,12 @@ export async function fetchPostBySlug(slug: string, isTip: boolean = false) {
     // For tips, verify it has the Jerome tag
     if (isTip && post.tags !== 'Jerome') {
       console.log('[fetchPostBySlug] Post found but not a Jerome tip:', post.tags);
+      return { post: null, error: 'Post not found' };
+    }
+
+    // For non-tips, verify it has an allowed tag if it's not Jerome
+    if (!isTip && post.tags !== 'Jerome' && !hasAllowedTag(post.tags)) {
+      console.log('[fetchPostBySlug] Post found but does not have allowed tag:', post.tags);
       return { post: null, error: 'Post not found' };
     }
 
@@ -601,10 +636,10 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
   console.log(`[API] Fetching posts for tag: ${exactTag}, range: ${start}-${end}`);
 
   try {
+    // Add filtering for tag patterns since exact matching isn't working
     const { data: posts, error } = await supabase
       .from('blog_posts')
       .select('*')
-      .eq('tags', exactTag)  // Use exact match for tags
       .order('created_at', { ascending: false })
       .range(start, end);
 
@@ -618,8 +653,32 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
       return { posts: [], error: null };
     }
 
+    // Filter by tag pattern rather than exact match
+    let filteredPosts = posts;
+    if (exactTag === 'kitchenremodeling') {
+      filteredPosts = posts.filter(post => 
+        post.tags && post.tags.toLowerCase().includes('kitchen')
+      );
+    } else if (exactTag === 'bathroomremodeling') {
+      filteredPosts = posts.filter(post => 
+        post.tags && post.tags.toLowerCase().includes('bathroom')
+      );
+    } else if (exactTag === 'homeremodeling') {
+      filteredPosts = posts.filter(post => 
+        post.tags && post.tags.toLowerCase().includes('home') && 
+        !post.tags.toLowerCase().includes('kitchen') && 
+        !post.tags.toLowerCase().includes('bathroom')
+      );
+    } else if (exactTag === 'Jerome') {
+      filteredPosts = posts.filter(post => 
+        post.tags === 'Jerome'
+      );
+    }
+
+    console.log(`[API] Filtered from ${posts.length} to ${filteredPosts.length} posts for tag pattern: ${exactTag}`);
+
     // Transform posts
-    const transformedPosts = posts.map(post => {
+    const transformedPosts = filteredPosts.map(post => {
       let content = post.content || '';
       
       // Special handling for kitchen posts
@@ -649,7 +708,7 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
         image_url: finalImageUrl || (exactTag === 'Jerome' 
           ? '/images/onsite-blog-Jerome-image-333.jpg'
           : DEFAULT_IMAGES[exactTag === 'kitchenremodeling' ? 'kitchen' :
-                         exactTag === 'bathroom' ? 'bathroom' :
+                         exactTag === 'bathroomremodeling' ? 'bathroom' :
                          'general'])
       } as BlogPost;
     });
@@ -659,4 +718,18 @@ export async function fetchPosts(exactTag: string, start: number = 0, end: numbe
     console.error('[API] Error in fetchPosts:', err);
     return { posts: [], error: err as Error };
   }
+}
+
+function hasAllowedTag(tags: string | null | undefined): boolean {
+  if (!tags) return false;
+
+  const tagsLower = tags.toLowerCase();
+  
+  // Look for patterns in tags rather than exact matches
+  return (
+    tagsLower.includes('kitchen') ||
+    tagsLower.includes('bathroom') ||
+    tagsLower.includes('home') ||
+    tags === 'Jerome'
+  );
 }
