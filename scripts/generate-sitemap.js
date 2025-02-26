@@ -20,8 +20,22 @@ function cleanUrl(url) {
     .replace(/[&]/g, 'and') // Replace & with 'and'
     .replace(/[?]/g, '') // Remove question marks
     .replace(/[\s]+/g, '-') // Replace spaces with hyphens
+    .replace(/[–]/g, '-') // Replace en-dash with hyphen
+    .replace(/[—]/g, '-') // Replace em-dash with hyphen
+    .replace(/[''""]/g, '') // Remove quotes
     .replace(/[^a-zA-Z0-9-]/g, '') // Remove any other non-alphanumeric characters
     .toLowerCase(); // Convert to lowercase
+}
+
+// Function to safely encode XML special characters
+function escapeXml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 async function fetchAllPosts() {
@@ -82,7 +96,7 @@ async function generateSitemap() {
     console.log('Adding static pages to sitemap...');
     staticPages.forEach(({ url, priority, changefreq }) => {
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${baseUrl}${url}</loc>\n`;
+      sitemap += `    <loc>${escapeXml(baseUrl + url)}</loc>\n`;
       sitemap += `    <lastmod>${currentDate}</lastmod>\n`;
       sitemap += `    <changefreq>${changefreq}</changefreq>\n`;
       sitemap += `    <priority>${priority}</priority>\n`;
@@ -98,17 +112,20 @@ async function generateSitemap() {
         console.warn(`Skipping post without slug: ${post.title || 'Untitled'}`);
         continue;
       }
+      
+      // Clean the slug
+      const cleanSlug = cleanUrl(post.slug);
 
       const postUrl = post.tags === 'Jerome'
-        ? `/tips/${post.slug}/`
-        : `/blog/posts/${post.slug}/`;
+        ? `/tips/${cleanSlug}/`
+        : `/blog/posts/${cleanSlug}/`;
 
       const lastmod = post.created_at || currentDate;
       const priority = post.tags === 'Jerome' ? '0.8' : '0.7';
       const changefreq = post.tags === 'Jerome' ? 'weekly' : 'monthly';
 
       sitemap += `  <url>\n`;
-      sitemap += `    <loc>${baseUrl}${postUrl}</loc>\n`;
+      sitemap += `    <loc>${escapeXml(baseUrl + postUrl)}</loc>\n`;
       sitemap += `    <lastmod>${formatDate(lastmod)}</lastmod>\n`;
       sitemap += `    <changefreq>${changefreq}</changefreq>\n`;
       sitemap += `    <priority>${priority}</priority>\n`;
