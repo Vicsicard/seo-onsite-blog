@@ -29,7 +29,7 @@ async function fetchAllPosts() {
     console.log('Fetching all posts from Supabase...');
     const { data: posts, error } = await supabase
       .from('blog_posts')
-      .select('slug, title, created_at, updated_at, tags, published_at, content')
+      .select('slug, title, created_at, tags, content')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -103,7 +103,7 @@ async function generateSitemap() {
         ? `/tips/${post.slug}/`
         : `/blog/posts/${post.slug}/`;
 
-      const lastmod = post.updated_at || post.published_at || post.created_at || currentDate;
+      const lastmod = post.created_at || currentDate;
       const priority = post.tags === 'Jerome' ? '0.8' : '0.7';
       const changefreq = post.tags === 'Jerome' ? 'weekly' : 'monthly';
 
