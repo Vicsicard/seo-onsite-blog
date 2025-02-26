@@ -29,6 +29,47 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## SEO Improvements
+
+This project includes various SEO optimizations to improve search engine visibility and user experience:
+
+### Implemented Features
+
+1. **Google Analytics Integration**
+   - Google Analytics 4 integration for tracking user behavior
+   - Custom events tracking for key user interactions
+   - Replace "G-MEASUREMENT_ID" with your actual Google Analytics ID
+
+2. **Technical SEO**
+   - Canonical URLs to prevent duplicate content issues
+   - Sitemap.xml generation with properly formatted URLs
+   - Enhanced robots.txt configuration
+   - Mobile-specific metadata for better mobile search optimization
+   - Improved Next.js configuration for better performance
+
+3. **Structured Data**
+   - JSON-LD implementation for blog posts to enhance search result appearance
+   - Article-specific metadata for better content indexing
+   - Proper authorship attribution
+
+4. **Social Media & Sharing**
+   - Enhanced OpenGraph tags for better social media sharing
+   - Twitter Card support for improved Twitter sharing
+   - Proper image dimensions and formats for social sharing
+
+5. **Performance Optimization**
+   - Image optimization enabled
+   - Additional image domains for better resource loading
+   - Core Web Vitals optimization through Next.js config
+   - Trailing slash standardization
+
+### How to Maintain
+
+- Run the sitemap generator script after adding new content: `node scripts/generate-sitemap.js`
+- Update Google Analytics ID in `src/app/layout.tsx` with your actual measurement ID
+- Ensure all blog posts have proper metadata including titles, descriptions, and images
+- Verify structured data using Google's Rich Results Test after making changes
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { fetchPostBySlug } from '@/lib/api';
 import BlogPost from '@/components/BlogPost';
 import Header from '@/components/Header';
+import BlogJsonLd from '@/components/BlogJsonLd';
 import { notFound } from 'next/navigation';
 
 export async function generateMetadata({
@@ -49,6 +50,15 @@ export async function generateMetadata({
         ],
         locale: 'en_US',
         type: 'article',
+        article: {
+          publishedTime: post.published_at ? new Date(post.published_at).toISOString() : undefined,
+          modifiedTime: post.updated_at ? new Date(post.updated_at).toISOString() : undefined,
+          tags: post.tags ? post.tags.split(',').map(tag => tag.trim()) : [],
+          authors: [post.tags === 'Jerome' ? 'Jerome Anderson' : 'Onsite Proposal Team'],
+        }
+      },
+      alternates: {
+        canonical: `https://luxuryhomeremodelingdenver.com/blog/posts/${post.slug}/`,
       },
     };
   } catch (error) {
@@ -80,16 +90,15 @@ export default async function BlogPostPage({
       notFound();
     }
 
-    console.log('[BlogPostPage] Successfully loaded post:', {
-      title: post.title,
-      slug: post.slug,
-      contentLength: post.content?.length,
-      hasContent: !!post.content
-    });
+    console.log('[BlogPostPage] Found blog post:', post.title);
+
+    const postUrl = `/blog/posts/${post.slug}`;
 
     return (
-      <div className="min-h-screen bg-gray-900">
+      <div className="min-h-screen bg-black">
         <Header />
+        {/* Add JSON-LD structured data */}
+        <BlogJsonLd post={post} url={postUrl} />
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <article className="prose prose-invert lg:prose-xl mx-auto">
             <BlogPost post={post} isPreview={false} />
