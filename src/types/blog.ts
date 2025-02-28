@@ -7,8 +7,16 @@ export interface BlogPost {
   description: string | null;
   tags: string | null;
   image_url: string | null;
+  images?: ImageItem[] | null;
   excerpt?: string;
   updated_at?: string;
+}
+
+// Define the structure for image items in the array
+export interface ImageItem {
+  url: string;
+  alt?: string;
+  position?: number;
 }
 
 // Helper function to parse tags string into array

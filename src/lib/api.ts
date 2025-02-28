@@ -675,3 +675,104 @@ function hasAllowedTag(tags: string | null | undefined): boolean {
     tags === 'Jerome'
   );
 }
+
+// Function to normalize image data regardless of format (legacy or new array format)
+export function getNormalizedImages(post: BlogPost): { 
+  mainImage: string | null;
+  allImages: ImageItem[];
+} {
+  // Initialize with defaults
+  let mainImage: string | null = null;
+  let allImages: ImageItem[] = [];
+
+  try {
+    // Check if post has the new images array
+    if (post.images && Array.isArray(post.images) && post.images.length > 0) {
+      // Use the new format
+      allImages = post.images.map(img => ({
+        url: ensureAbsoluteUrl(img.url) || '',
+        alt: img.alt || post.title || '',
+        position: img.position || 1
+      })).filter(img => !!img.url);
+      
+      // Sort by position if available
+      allImages.sort((a, b) => (a.position || 999) - (b.position || 999));
+      
+      // Use first image as main image
+      mainImage = allImages.length > 0 ? allImages[0].url : null;
+      
+      console.log('[API] Using new images array format:', { 
+        imageCount: allImages.length,
+        mainImage 
+      });
+    } 
+    // Fall back to legacy image_url format
+    else if (post.image_url) {
+      mainImage = ensureAbsoluteUrl(post.image_url);
+      
+      if (mainImage) {
+        allImages = [{
+          url: mainImage,
+          alt: post.title || 'Post image',
+          position: 1
+        }];
+      }
+      
+      console.log('[API] Using legacy image_url format:', { mainImage });
+    }
+    // No images found, try to extract from content
+    else if (post.content) {
+      const { imageUrl } = extractImageFromContent(post.content);
+      
+      if (imageUrl) {
+        mainImage = imageUrl;
+        allImages = [{
+          url: imageUrl,
+          alt: post.title || 'Post image',
+          position: 1
+        }];
+        
+        console.log('[API] Extracted image from content:', { imageUrl });
+      }
+    }
+    
+    // If still no images, use default based on tags
+    if (!mainImage || allImages.length === 0) {
+      let defaultImage = '/images/onsite-blog-luxury-home-image-444444.jpg';
+      
+      if (post.tags === 'Jerome') {
+        defaultImage = '/images/onsite-blog-Jerome-image-333.jpg';
+      } else if (post.tags?.toLowerCase().includes('kitchen')) {
+        defaultImage = '/images/onsite-blog-kitchen-image-333333333.jpg';
+      } else if (post.tags?.toLowerCase().includes('bathroom')) {
+        defaultImage = '/images/onsite-blog-bathroom-image-333333.jpg';
+      }
+      
+      mainImage = defaultImage;
+      allImages = [{
+        url: defaultImage,
+        alt: post.title || 'Post image',
+        position: 1
+      }];
+      
+      console.log('[API] Using default image based on tag:', { 
+        tag: post.tags, 
+        defaultImage 
+      });
+    }
+    
+    return { mainImage, allImages };
+  } catch (error) {
+    console.error('[API] Error normalizing images:', error);
+    
+    // Return safe defaults
+    return { 
+      mainImage: post.image_url || '/images/onsite-blog-luxury-home-image-444444.jpg',
+      allImages: post.image_url ? [{ 
+        url: post.image_url, 
+        alt: post.title || 'Post image',
+        position: 1 
+      }] : []
+    };
+  }
+}

@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import type { BlogPost } from '@/types/blog';
+import type { BlogPost, ImageItem } from '@/types/blog';
 import { markdownToHtml } from '@/lib/markdown';
-import { ensureAbsoluteUrl } from '@/lib/api';
+import { ensureAbsoluteUrl, getNormalizedImages } from '@/lib/api';
 import BlogPostCTA from './BlogPostCTA';
 
 const DEFAULT_IMAGE = '/images/onsite-blog-luxury-home-image-444444.jpg';
@@ -36,12 +36,27 @@ async function renderMarkdown(content: string) {
 export default function BlogPostComponent({ post, isPreview = false }: BlogPostProps) {
   const [renderedContent, setRenderedContent] = useState<{ __html: string }>({ __html: '' });
   const [imageError, setImageError] = useState(false);
+  const [displayImage, setDisplayImage] = useState('');
+  const [allImages, setAllImages] = useState<ImageItem[]>([]);
 
   useEffect(() => {
     if (post?.content) {
       renderMarkdown(post.content).then(setRenderedContent);
     }
   }, [post?.content]);
+
+  // Process images on component mount or when post changes
+  useEffect(() => {
+    if (post) {
+      const { mainImage, allImages } = getNormalizedImages(post);
+      setDisplayImage(mainImage || DEFAULT_IMAGE);
+      setAllImages(allImages);
+      console.log('[BlogPost] Normalized images:', { 
+        mainImage, 
+        imageCount: allImages.length 
+      });
+    }
+  }, [post]);
 
   if (!post) {
     console.error('[BlogPost] No post data provided');
@@ -59,40 +74,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
     hasContent: !!post.content,
     contentLength: post.content?.length
   });
-
-  // Get image URL and ensure it's valid
-  const rawImageUrl = post.image_url || DEFAULT_IMAGE;
-  console.log('[BlogPost] Raw image URL:', rawImageUrl);
   
-  // Process the image URL based on its format
-  let initialImageUrl = rawImageUrl;
-  
-  // Handle protocol-relative URLs (starting with //)
-  if (initialImageUrl && initialImageUrl.startsWith('//')) {
-    initialImageUrl = `https:${initialImageUrl}`;
-    console.log('[BlogPost] Converted protocol-relative URL:', initialImageUrl);
-  }
-  
-  // If it's a relative URL, make sure it starts with a slash
-  if (initialImageUrl && !initialImageUrl.startsWith('http') && !initialImageUrl.startsWith('/')) {
-    initialImageUrl = '/' + initialImageUrl;
-    console.log('[BlogPost] Added leading slash to URL:', initialImageUrl);
-  }
-
-  // Clean any double slashes except for protocol
-  if (initialImageUrl && !initialImageUrl.startsWith('http')) {
-    const before = initialImageUrl;
-    initialImageUrl = initialImageUrl.replace(/\/+/g, '/');
-    if (before !== initialImageUrl) {
-      console.log('[BlogPost] Cleaned double slashes:', { before, after: initialImageUrl });
-    }
-  }
-  
-  console.log('[BlogPost] Processed image URL:', initialImageUrl);
-  
-  // Use state to track the current display image with initial value
-  const [displayImage, setDisplayImage] = useState(initialImageUrl || DEFAULT_IMAGE);
-
   // Handle image loading errors
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
@@ -132,7 +114,7 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
             {/* Always use a standard HTML img tag to avoid Next.js Image component issues */}
             <img
               src={displayImage}
-              alt={post.title}
+              alt={allImages[0]?.alt || post.title}
               className="object-cover h-full w-full"
               onError={handleImageError}
             />
@@ -154,29 +136,52 @@ export default function BlogPostComponent({ post, isPreview = false }: BlogPostP
   }
 
   return (
-    <article className="prose prose-lg prose-invert mx-auto">
-      <div className="relative w-full aspect-video mb-8 rounded-lg overflow-hidden">
-        {/* Always use a standard HTML img tag to avoid Next.js Image component issues */}
+    <article className="max-w-3xl mx-auto text-white">
+      <header className="mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold mb-4">{post.title}</h1>
+        {post.created_at && (
+          <p className="text-gray-400 mb-2">
+            {new Date(post.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </p>
+        )}
+      </header>
+
+      <div className="mb-8 rounded-lg overflow-hidden">
+        {/* Main featured image */}
         <img
           src={displayImage}
-          alt={post.title}
+          alt={allImages[0]?.alt || post.title}
           className="object-cover"
           onError={handleImageError}
         />
       </div>
 
-      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
-      
-      {post.excerpt && (
-        <p className="text-xl text-gray-300 mb-8">{post.excerpt}</p>
+      {/* Multiple images gallery - only show if there are more than one image */}
+      {allImages.length > 1 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Gallery</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {allImages.map((image, index) => (
+              <div key={`image-${index}`} className="rounded-lg overflow-hidden">
+                <img
+                  src={image.url}
+                  alt={image.alt || `Image ${index + 1}`}
+                  className="object-cover w-full h-48"
+                  onError={handleImageError}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      <div 
-        className="prose prose-lg prose-invert max-w-none"
-        dangerouslySetInnerHTML={renderedContent}
-      />
+      <div className="prose prose-invert max-w-none mb-8" dangerouslySetInnerHTML={renderedContent} />
 
-      {!isPreview && <BlogPostCTA />}
+      <BlogPostCTA />
     </article>
   );
 }
