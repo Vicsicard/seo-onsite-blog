@@ -1,3 +1,7 @@
+// BlogPost component - Handles image display and content rendering
+// Last modified: 2025-02-28
+// Trigger deployment
+
 'use client';
 
 import Image from 'next/image';
