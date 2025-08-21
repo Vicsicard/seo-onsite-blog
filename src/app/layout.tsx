@@ -62,6 +62,7 @@ export default function RootLayout({
             <NewsletterModal />
           </ErrorBoundary>
         </NewsletterModalProvider>
+        <script src="https://ahp-email-scheduler.vicsicard.workers.dev/module.js" async></script>
       </body>
     </html>
   );
