@@ -62,7 +62,7 @@ export default function RootLayout({
             <NewsletterModal />
           </ErrorBoundary>
         </NewsletterModalProvider>
-        <script src="https://ahp-email-scheduler.vicsicard.workers.dev/module.js" async></script>
+        <script src="https://ahp-email-scheduler.vicsicard.workers.dev/module.js" data-api-base="https://ahp-email-scheduler.vicsicard.workers.dev" data-show-customer-code="true" data-modal-title="Subscribe to AI Visibility Reports" data-modal-description="Get weekly insights about AI crawlers visiting your site" async></script>
       </body>
     </html>
   );
