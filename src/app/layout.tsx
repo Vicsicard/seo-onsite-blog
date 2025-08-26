@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Footer from '@/components/Footer';
@@ -62,7 +63,20 @@ export default function RootLayout({
             <NewsletterModal />
           </ErrorBoundary>
         </NewsletterModalProvider>
-        <script src="https://ahp-email-scheduler.vicsicard.workers.dev/module.js" data-api-base="https://ahp-email-scheduler.vicsicard.workers.dev" data-show-customer-code="true" data-modal-title="Subscribe to AI Visibility Reports" data-modal-description="Get weekly insights about AI crawlers visiting your site" async></script>
+        <Script id="ahp-module" strategy="afterInteractive">
+          {`
+            (function() {
+              var script = document.createElement('script');
+              script.src = 'https://module-cdn-worker.vicsicard.workers.dev/module.js';
+              script.setAttribute('data-api-base', 'https://ahp-email-scheduler-production.vicsicard.workers.dev');
+              script.setAttribute('data-show-customer-code', 'true');
+              script.setAttribute('data-modal-title', 'Subscribe to AI Visibility Reports');
+              script.setAttribute('data-modal-description', 'Get weekly insights about AI crawlers visiting your site');
+              script.async = true;
+              document.head.appendChild(script);
+            })();
+          `}
+        </Script>
       </body>
     </html>
   );
